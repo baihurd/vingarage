@@ -531,6 +531,77 @@
       background: rgba(255,255,255,.04);
     }
 
+    @media (max-width: 768px) {
+      .wrap {
+        padding: 14px 10px 32px;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .results-layout {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .results-card, .detail-card, .cart-card {
+        height: auto;
+        min-height: 200px;
+      }
+
+      .search-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .grid[style*="grid-template-columns: 1.6fr auto"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      .row {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .price {
+        text-align: left;
+        min-width: auto;
+      }
+
+      .toolbar {
+        flex-direction: column;
+      }
+
+      .link-button {
+        min-width: 100%;
+      }
+
+      button {
+        min-width: 100%;
+      }
+
+      .mini-stats {
+        grid-template-columns: 1fr;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+
+      .kv {
+        grid-template-columns: 1fr;
+      }
+
+      .kv div:nth-child(odd) {
+        font-weight: bold;
+      }
+
+      .useful-sites-dropdown {
+        min-width: 200px;
+      }
+    }
+
   </style>
 </head>
 <body>
