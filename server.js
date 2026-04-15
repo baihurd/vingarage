@@ -1,12 +1,14 @@
 import express from "express";
 import cors from "cors";
+import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const EARNINGS_FILE_PATH = path.join(__dirname, 'earnings.json');
 
-let earningsEntriesMemory = [];
+let earningsEntriesMemory = null;
 
 app.use(cors());
 app.use(express.json());
@@ -175,11 +177,30 @@ app.post("/api/mikado/search", async (req, res) => {
 });
 
 async function loadEarningsFile() {
+  if (earningsEntriesMemory !== null) {
+    return earningsEntriesMemory;
+  }
+
+  try {
+    const raw = await fs.readFile(EARNINGS_FILE_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    earningsEntriesMemory = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      earningsEntriesMemory = [];
+      await fs.writeFile(EARNINGS_FILE_PATH, '[]', 'utf-8');
+    } else {
+      console.error('loadEarningsFile error:', error);
+      earningsEntriesMemory = [];
+    }
+  }
+
   return earningsEntriesMemory;
 }
 
 async function saveEarningsFile(entries) {
-  earningsEntriesMemory = entries;
+  earningsEntriesMemory = Array.isArray(entries) ? entries : [];
+  await fs.writeFile(EARNINGS_FILE_PATH, JSON.stringify(earningsEntriesMemory, null, 2), 'utf-8');
 }
 
 app.get("/api/earnings", async (req, res) => {
