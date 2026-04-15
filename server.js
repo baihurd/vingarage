@@ -7,8 +7,10 @@ import { fileURLToPath } from "url";
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const EARNINGS_FILE_PATH = path.join(__dirname, 'earnings.json');
+const CLIENTS_FILE_PATH = path.join(__dirname, 'clients.json');
 
 let earningsEntriesMemory = null;
+let clientsEntriesMemory = null;
 
 app.use(cors());
 app.use(express.json());
@@ -203,6 +205,33 @@ async function saveEarningsFile(entries) {
   await fs.writeFile(EARNINGS_FILE_PATH, JSON.stringify(earningsEntriesMemory, null, 2), 'utf-8');
 }
 
+async function loadClientsFile() {
+  if (clientsEntriesMemory !== null) {
+    return clientsEntriesMemory;
+  }
+
+  try {
+    const raw = await fs.readFile(CLIENTS_FILE_PATH, 'utf-8');
+    const parsed = JSON.parse(raw);
+    clientsEntriesMemory = Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      clientsEntriesMemory = [];
+      await fs.writeFile(CLIENTS_FILE_PATH, '[]', 'utf-8');
+    } else {
+      console.error('loadClientsFile error:', error);
+      clientsEntriesMemory = [];
+    }
+  }
+
+  return clientsEntriesMemory;
+}
+
+async function saveClientsFile(entries) {
+  clientsEntriesMemory = Array.isArray(entries) ? entries : [];
+  await fs.writeFile(CLIENTS_FILE_PATH, JSON.stringify(clientsEntriesMemory, null, 2), 'utf-8');
+}
+
 app.get("/api/earnings", async (req, res) => {
   try {
     const entries = await loadEarningsFile();
@@ -250,6 +279,61 @@ app.delete("/api/earnings/:id", async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить запись" });
+  }
+});
+
+app.get("/api/clients", async (req, res) => {
+  try {
+    const entries = await loadClientsFile();
+    return res.json({ ok: true, entries });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить клиентов" });
+  }
+});
+
+app.post("/api/clients", async (req, res) => {
+  try {
+    const name = String(req.body.name || "").trim();
+    const phone = String(req.body.phone || "").trim();
+    const vin = String(req.body.vin || "").trim();
+    const note = String(req.body.note || "").trim();
+
+    if (!name) {
+      return res.status(400).json({ ok: false, error: "Укажите имя клиента" });
+    }
+
+    const entries = await loadClientsFile();
+    const entry = {
+      id: `client-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      name,
+      phone,
+      vin,
+      note,
+      timestamp: Date.now(),
+    };
+    entries.push(entry);
+    await saveClientsFile(entries);
+    return res.json({ ok: true, entry });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось сохранить клиента" });
+  }
+});
+
+app.delete("/api/clients/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "Не передан id" });
+    }
+    const entries = await loadClientsFile();
+    const filtered = entries.filter((entry) => entry.id !== id);
+    await saveClientsFile(filtered);
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить клиента" });
   }
 });
 

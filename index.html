@@ -330,6 +330,145 @@
       position: relative;
     }
 
+    .clients-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1400;
+      padding: 18px;
+    }
+
+    .clients-modal.open {
+      display: flex;
+    }
+
+    .clients-modal-content {
+      width: min(720px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      background: rgba(23, 26, 33, 0.98);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      position: relative;
+    }
+
+    .clients-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .clients-modal-close {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 6px;
+    }
+
+    .clients-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 138, 29, 0.08);
+      border: 1px solid rgba(255, 138, 29, 0.2);
+    }
+
+    .clients-summary strong {
+      font-size: 24px;
+      color: #fff;
+    }
+
+    .clients-entries {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .client-entry {
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .client-entry-info {
+      display: grid;
+      gap: 4px;
+    }
+
+    .client-entry-name {
+      font-size: 16px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .client-entry-meta {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .client-entry-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .sort-button {
+      min-width: auto !important;
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    .sort-button.active {
+      border-color: rgba(255, 138, 29, 0.75);
+      background: rgba(255, 138, 29, 0.15);
+    }
+
+    .clients-form-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: end;
+      margin-bottom: 14px;
+    }
+
+    .clients-form textarea,
+    .clients-form input {
+      width: 100%;
+    }
+
+    .clients-form textarea {
+      min-height: 90px;
+      resize: vertical;
+      border-radius: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: #0f131a;
+      color: var(--text);
+    }
+
+    .clients-form input {
+      border-radius: 14px;
+      padding: 14px;
+    }
+
     .earnings-modal-header {
       position: relative;
       display: flex;
@@ -400,6 +539,13 @@
     .earnings-entry-date {
       font-size: 12px;
       color: var(--muted);
+    }
+
+    .earnings-entry-vin {
+      font-size: 13px;
+      color: #d7dde7;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     .earnings-entry-text {
@@ -1069,6 +1215,7 @@
         <div>Общая сумма</div>
         <strong id="earningsTotal">0 ₽</strong>
       </div>
+      <button id="clientsBtn" class="link-button secondary" type="button" style="margin-bottom: 14px;">Клиенты</button>
       <div id="earningsEntries" class="earnings-entries"></div>
       <div class="earnings-form">
         <div class="earnings-form-grid">
@@ -1079,8 +1226,49 @@
           <button id="earningsAddBtn" type="button">Добавить</button>
         </div>
         <div>
+          <label for="earningsVinInput">VIN</label>
+          <input id="earningsVinInput" type="text" placeholder="VIN" />
+        </div>
+        <div>
           <label for="earningsCommentInput">Комментарий</label>
           <textarea id="earningsCommentInput" placeholder="Например, комиссия, доставка, отзыв"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="clients-modal" id="clientsModal">
+    <div class="clients-modal-content">
+      <div class="clients-modal-header">
+        <h2 class="section-title">Клиенты</h2>
+        <button class="clients-modal-close" id="clientsModalClose" type="button">✕</button>
+      </div>
+      <div class="clients-summary">
+        <div>Всего клиентов</div>
+        <strong id="clientsTotal">0</strong>
+      </div>
+      <div id="clientsEntries" class="clients-entries"></div>
+      <div class="clients-form">
+        <div class="clients-form-grid">
+          <div>
+            <label for="clientNameInput">Имя клиента</label>
+            <input id="clientNameInput" type="text" placeholder="ФИО или клиент" />
+          </div>
+          <div>
+            <label for="clientPhoneInput">Телефон</label>
+            <input id="clientPhoneInput" type="text" placeholder="+7 999 000 00 00" />
+          </div>
+        </div>
+        <div class="clients-form-grid">
+          <div>
+            <label for="clientVinInput">VIN</label>
+            <input id="clientVinInput" type="text" placeholder="VIN" />
+          </div>
+          <button id="clientsAddBtn" type="button">Добавить клиента</button>
+        </div>
+        <div>
+          <label for="clientNoteInput">Примечание</label>
+          <textarea id="clientNoteInput" placeholder="Машина, модель, заметки"></textarea>
         </div>
       </div>
     </div>
@@ -1139,7 +1327,7 @@
           <label for="code">Код детали</label>
           <input id="code" placeholder="Например, 0265008135 или MAG3482" />
         </div>
-        <div class="checkbox-dropdown-wrapper" id="statusWrapper">
+        <div class="checkbox-dropdown-wrapper" id="statusWrapper" style="display:none;">
           <label>Статус</label>
           <button type="button" id="statusToggle" class="checkbox-dropdown-toggle">Выбрать статусы</button>
           <div id="statusDropdown" class="checkbox-dropdown" style="display:none;">
@@ -1310,7 +1498,9 @@
     els.vinSearchBtn?.addEventListener('click', openVinSearch);
 
     const EARNINGS_KEY = 'vin_garage_earnings';
+    const CLIENTS_KEY = 'vin_garage_clients';
     let earningsEntries = [];
+    let clientEntries = [];
 
     function loadLocalEarnings() {
       try {
@@ -1327,6 +1517,24 @@
         localStorage.setItem(EARNINGS_KEY, JSON.stringify(entries));
       } catch (error) {
         console.error('saveLocalEarnings error:', error);
+      }
+    }
+
+    function loadLocalClients() {
+      try {
+        const raw = localStorage.getItem(CLIENTS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveLocalClients(entries) {
+      try {
+        localStorage.setItem(CLIENTS_KEY, JSON.stringify(entries));
+      } catch (error) {
+        console.error('saveLocalClients error:', error);
       }
     }
 
@@ -1374,6 +1582,7 @@
         <div class="earnings-entry">
           <div class="earnings-entry-info">
             <div class="earnings-entry-date">${new Date(entry.timestamp).toLocaleString('ru-RU')}</div>
+            ${entry.vin ? `<div class="earnings-entry-vin">VIN: ${escapeText(entry.vin)}</div>` : ''}
             <div class="earnings-entry-text">${escapeText(entry.comment || 'Без комментария')}</div>
           </div>
           <div class="earnings-entry-actions">
@@ -1420,8 +1629,9 @@
 
     async function addEarningsEntry() {
       const amountInput = document.getElementById('earningsAmountInput');
+      const vinInput = document.getElementById('earningsVinInput');
       const commentInput = document.getElementById('earningsCommentInput');
-      if (!amountInput || !commentInput) return;
+      if (!amountInput || !commentInput || !vinInput) return;
 
       const amount = Number(String(amountInput.value).replace(',', '.'));
       if (Number.isNaN(amount) || amount <= 0) {
@@ -1433,13 +1643,14 @@
         const response = await fetch('/api/earnings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ amount, comment: commentInput.value.trim() }),
+          body: JSON.stringify({ amount, vin: vinInput.value.trim(), comment: commentInput.value.trim() }),
         });
         const data = await response.json();
         if (!response.ok || !data.ok) {
           throw new Error(data.error || 'Ошибка сохранения');
         }
         amountInput.value = '';
+        vinInput.value = '';
         commentInput.value = '';
         await loadEarningsData();
       } catch (error) {
@@ -1447,21 +1658,161 @@
         earningsEntries.push({
           id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
           amount,
+          vin: vinInput.value.trim(),
           comment: commentInput.value.trim(),
           timestamp: Date.now(),
         });
         saveLocalEarnings(earningsEntries);
         amountInput.value = '';
+        vinInput.value = '';
         commentInput.value = '';
         updateEarningsDisplay();
         renderEarningsEntries();
       }
     }
 
-    async function loadEarningsData() {
-      await fetchEarnings();
-      updateEarningsDisplay();
-      renderEarningsEntries();
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Ошибка загрузки данных');
+      }
+      earningsEntries = Array.isArray(data.entries) ? data.entries : [];
+    } catch (error) {
+      console.error('fetchEarnings error:', error);
+      earningsEntries = loadLocalEarnings();
+    }
+
+    async function fetchClients() {
+      try {
+        const response = await fetch('/api/clients');
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Ошибка загрузки клиентов');
+        }
+        clientEntries = Array.isArray(data.entries) ? data.entries : [];
+      } catch (error) {
+        console.error('fetchClients error:', error);
+        clientEntries = loadLocalClients();
+      }
+    }
+
+    function updateClientsDisplay() {
+      const total = clientEntries.length;
+      const summaryAmount = document.getElementById('clientsTotal');
+      if (summaryAmount) summaryAmount.textContent = total;
+    }
+
+    function renderClientsEntries() {
+      const container = document.getElementById('clientsEntries');
+      if (!container) return;
+      if (clientEntries.length === 0) {
+        container.innerHTML = '<div class="earnings-empty">Клиентов нет. Добавьте первого клиента.</div>';
+        return;
+      }
+
+      const sorted = [...clientEntries].sort((a, b) => b.timestamp - a.timestamp);
+      container.innerHTML = sorted.map((entry) => `
+        <div class="client-entry">
+          <div class="client-entry-info">
+            <div class="client-entry-name">${escapeText(entry.name || 'Без имени')}</div>
+            <div class="client-entry-meta">Телефон: ${escapeText(entry.phone || '—')}</div>
+            ${entry.vin ? `<div class="client-entry-meta">VIN: ${escapeText(entry.vin)}</div>` : ''}
+            ${entry.note ? `<div class="client-entry-meta">${escapeText(entry.note)}</div>` : ''}
+          </div>
+          <div class="client-entry-actions">
+            <button class="earnings-entry-delete" type="button" data-id="${entry.id}">Удалить</button>
+          </div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.earnings-entry-delete').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.dataset.id;
+          try {
+            const response = await fetch(`/api/clients/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+              throw new Error(data.error || 'Ошибка удаления клиента');
+            }
+            await loadClientsData();
+          } catch (error) {
+            console.error('deleteClientEntry error:', error);
+            clientEntries = clientEntries.filter((entry) => entry.id !== id);
+            saveLocalClients(clientEntries);
+            updateClientsDisplay();
+            renderClientsEntries();
+          }
+        });
+      });
+    }
+
+    async function openClientsModal() {
+      const modal = document.getElementById('clientsModal');
+      if (!modal) return;
+      await loadClientsData();
+      modal.classList.add('open');
+      renderClientsEntries();
+    }
+
+    function closeClientsModal() {
+      const modal = document.getElementById('clientsModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+    }
+
+    async function addClientEntry() {
+      const nameInput = document.getElementById('clientNameInput');
+      const phoneInput = document.getElementById('clientPhoneInput');
+      const vinInput = document.getElementById('clientVinInput');
+      const noteInput = document.getElementById('clientNoteInput');
+      if (!nameInput || !phoneInput || !vinInput || !noteInput) return;
+
+      const name = nameInput.value.trim();
+      const phone = phoneInput.value.trim();
+      const vin = vinInput.value.trim();
+      const note = noteInput.value.trim();
+      if (!name) {
+        nameInput.focus();
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, phone, vin, note }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Ошибка сохранения клиента');
+        }
+        nameInput.value = '';
+        phoneInput.value = '';
+        vinInput.value = '';
+        noteInput.value = '';
+        await loadClientsData();
+      } catch (error) {
+        console.error('addClientEntry error:', error);
+        clientEntries.push({
+          id: `client-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          name,
+          phone,
+          vin,
+          note,
+          timestamp: Date.now(),
+        });
+        saveLocalClients(clientEntries);
+        nameInput.value = '';
+        phoneInput.value = '';
+        vinInput.value = '';
+        noteInput.value = '';
+        updateClientsDisplay();
+        renderClientsEntries();
+      }
+    }
+
+    async function loadClientsData() {
+      await fetchClients();
+      updateClientsDisplay();
+      renderClientsEntries();
     }
 
     async function initEarnings() {
@@ -1469,15 +1820,25 @@
       const modal = document.getElementById('earningsModal');
       const closeButton = document.getElementById('earningsModalClose');
       const addButton = document.getElementById('earningsAddBtn');
+      const clientsButton = document.getElementById('clientsBtn');
+      const clientsModalEl = document.getElementById('clientsModal');
+      const clientsCloseButton = document.getElementById('clientsModalClose');
 
       badge?.addEventListener('click', openEarningsModal);
       closeButton?.addEventListener('click', closeEarningsModal);
       addButton?.addEventListener('click', addEarningsEntry);
+      clientsButton?.addEventListener('click', openClientsModal);
+      document.getElementById('clientsAddBtn')?.addEventListener('click', addClientEntry);
+      clientsCloseButton?.addEventListener('click', closeClientsModal);
       modal?.addEventListener('click', (event) => {
         if (event.target === modal) closeEarningsModal();
       });
+      clientsModalEl?.addEventListener('click', (event) => {
+        if (event.target === clientsModalEl) closeClientsModal();
+      });
 
       await loadEarningsData();
+      await loadClientsData();
     }
 
     initEarnings();
@@ -1861,15 +2222,25 @@
       updateDeliverySortButton();
     }
 
+    function updatePriceSortButton() {
+      const btn = document.getElementById('priceSortBtn');
+      if (!btn) return;
+      btn.classList.toggle('active', sortMode === 'price');
+      if (sortMode === 'price') {
+        btn.textContent = priceSortDesc ? 'Цена ↓' : 'Цена ↑';
+      } else {
+        btn.textContent = 'Цена';
+      }
+    }
+
     function updateDeliverySortButton() {
       const btn = document.getElementById('deliverySortBtn');
       if (!btn) return;
+      btn.classList.toggle('active', sortMode === 'delivery');
       if (sortMode === 'delivery') {
-        btn.textContent = sortDeliveryAsc
-          ? 'Сортировать: быстрые → длинные'
-          : 'Сортировать: длинные → быстрые';
+        btn.textContent = sortDeliveryAsc ? 'Срок ↓' : 'Срок ↑';
       } else {
-        btn.textContent = 'Сортировать: сроки';
+        btn.textContent = 'Срок';
       }
     }
 
@@ -1886,10 +2257,14 @@
         els.brandWrapper.style.display = 'none';
       }
 
-      const statusValues = Object.keys(STATUS_LABELS);
-      els.statusWrapper.style.display = 'block';
-      renderFilterList(statusValues, selectedStatuses, hasInitStatuses, els.statusFilters, els.statusToggle, 'Ничего не выбрано', 'Статусы', STATUS_LABELS);
-      els.statusToggle.disabled = false;
+      const statusValues = [...new Set(items.map(item => getNormalizedAvailability(item)).filter(Boolean))].sort();
+      if (statusValues.length > 0) {
+        els.statusWrapper.style.display = 'block';
+        renderFilterList(statusValues, selectedStatuses, hasInitStatuses, els.statusFilters, els.statusToggle, 'Ничего не выбрано', 'Статусы', STATUS_LABELS);
+        els.statusToggle.disabled = false;
+      } else {
+        els.statusWrapper.style.display = 'none';
+      }
 
       if (makes.length > 0) {
         els.makeWrapper.style.display = 'block';
@@ -1920,6 +2295,8 @@
         els.detail.innerHTML = 'Нет данных для показа.';
         els.brandDropdown.style.display = 'none';
         els.makeDropdown.style.display = 'none';
+        els.statusDropdown.style.display = 'none';
+        els.statusWrapper.style.display = 'none';
         return;
       }
 
