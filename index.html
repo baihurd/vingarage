@@ -261,6 +261,21 @@
       color: var(--accent);
     }
 
+    .results-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+
+    .sort-button {
+      min-width: auto !important;
+      padding: 10px 14px;
+      font-size: 14px;
+    }
+
     .cart-fab {
       position: fixed;
       bottom: 24px;
@@ -761,6 +776,18 @@
           <button id="vinSearchBtn" type="button">Проверить VIN</button>
         </div>
       </div>
+      <div class="grid" style="grid-template-columns: 1.4fr 1fr; gap: 12px; margin-bottom: 14px; align-items: flex-end;">
+        <div>
+          <label for="vinSite">По VIN на</label>
+          <select id="vinSite">
+            <option value="partsouq">Partsouq</option>
+            <option value="partsresource">Parts-resource</option>
+          </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+          <span class="sub" style="display:block; color: var(--muted); font-size: 14px;">Выберите сайт для поиска по VIN</span>
+        </div>
+      </div>
       <div class="grid search-grid">
         <div>
           <label for="code">Код детали</label>
@@ -800,7 +827,10 @@
 
     <section class="results-layout">
       <div class="card results-card">
-        <h2 class="section-title">Результаты</h2>
+        <div class="results-card-header">
+          <h2 class="section-title">Результаты</h2>
+          <button id="priceSortBtn" class="link-button secondary sort-button" type="button">Сортировать: дорогие → дешевые</button>
+        </div>
         <div id="results" class="empty">
           Введи код детали и нажми «Искать».
         </div>
@@ -873,6 +903,7 @@
       makeFilters: document.getElementById('makeFilters'),
       vinQuery: document.getElementById('vinQuery'),
       vinSearchBtn: document.getElementById('vinSearchBtn'),
+      vinSite: document.getElementById('vinSite'),
       cart: document.getElementById('cart'),
     };
 
@@ -881,6 +912,7 @@
     let cartItems = [];
     let selectedBrands = [];
     let selectedMakes = [];
+    let priceSortDesc = true;
     const hasInitBrands = { value: false };
     const hasInitMakes = { value: false };
 
@@ -890,12 +922,26 @@
       return new Intl.NumberFormat('ru-RU', { style: 'currency', currency: 'RUB', maximumFractionDigits: 2 }).format(value);
     }
 
+    const VIN_SITES = {
+      partsouq: {
+        label: 'Partsouq',
+        url: (vin) => vin
+          ? `https://partsouq.com/en/search/all?q=${encodeURIComponent(vin)}`
+          : 'https://partsouq.com/en/catalog/genuine',
+      },
+      partsresource: {
+        label: 'Parts-resource',
+        url: (vin) => vin
+          ? `https://www.parts-resource.ru/search/?q=${encodeURIComponent(vin)}`
+          : 'https://www.parts-resource.ru/',
+      },
+    };
+
     function openVinSearch() {
       const vin = (els.vinQuery?.value || '').trim();
-      const url = vin
-        ? `https://partsouq.com/en/search/all?q=${encodeURIComponent(vin)}`
-        : 'https://partsouq.com/en/catalog/genuine';
-
+      const siteKey = els.vinSite?.value || 'partsouq';
+      const site = VIN_SITES[siteKey] || VIN_SITES.partsouq;
+      const url = site.url(vin);
       window.open(url, '_blank');
     }
 
@@ -1277,8 +1323,13 @@
       }
 
       const filtered = filterItems(items);
+      const sorted = filtered.slice().sort((a, b) => {
+        const priceA = Number(a.priceOpt != null ? a.priceOpt : a.priceRetail || 0);
+        const priceB = Number(b.priceOpt != null ? b.priceOpt : b.priceRetail || 0);
+        return priceSortDesc ? priceB - priceA : priceA - priceB;
+      });
 
-      if (!filtered?.length) {
+      if (!sorted?.length) {
         els.results.className = 'empty';
         els.results.innerHTML = 'Ничего не найдено по выбранному коду и статусу.';
         els.detail.className = 'empty';
@@ -1288,7 +1339,7 @@
         return;
       }
 
-      const html = filtered.map(item => {
+      const html = sorted.map(item => {
         const av = availabilityMeta(item);
         const titleText = `${item.brand || '—'} ${item.code || '—'}`.trim();
         const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(titleText)}`;
@@ -1339,7 +1390,7 @@
         });
       });
 
-      renderDetail(filtered[0]);
+      renderDetail(sorted[0]);
     }
 
     function renderDetail(item) {
@@ -1432,6 +1483,22 @@
     els.status.addEventListener('change', () => {
       renderResults(currentItems);
     });
+
+    function updatePriceSortButton() {
+      const btn = document.getElementById('priceSortBtn');
+      if (!btn) return;
+      btn.textContent = priceSortDesc
+        ? 'Сортировать: дорогие → дешевые'
+        : 'Сортировать: дешевые → дорогие';
+    }
+
+    document.getElementById('priceSortBtn')?.addEventListener('click', () => {
+      priceSortDesc = !priceSortDesc;
+      updatePriceSortButton();
+      renderResults(currentItems);
+    });
+
+    updatePriceSortButton();
 
     loadCart();
     renderCart();
