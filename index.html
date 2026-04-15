@@ -280,6 +280,8 @@
       align-items: center;
       justify-content: center;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
+      padding: 0;
+      margin: 0;
     }
 
     .cart-fab:hover {
@@ -1311,6 +1313,10 @@
         node.addEventListener('click', () => {
           const item = currentItems.find(x => x.id === node.dataset.id);
           renderDetail(item);
+          // На мобильном открываем боковую панель при клике на товар
+          if (window.innerWidth <= 768) {
+            openDetailPanel(item);
+          }
         });
       });
 
@@ -1612,13 +1618,11 @@
       if (event.target === cartModal) closeCartModal();
     });
 
-    // Обновляем renderDetail для открытия боковой панели на мобильном
+    // Обновляем renderDetail для обновления содержимого
+    // (панель открывается только при клике на товар, не после поиска)
     const originalRenderDetail = renderDetail;
     renderDetail = function(item) {
       originalRenderDetail(item);
-      if (window.innerWidth <= 768) {
-        openDetailPanel(item);
-      }
     };
 
     // Обновляем renderCart для показа плавающей кнопки на мобильном
