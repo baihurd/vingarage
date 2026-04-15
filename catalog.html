@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Каталог по авто</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      color: #e7edf8;
+      background: #070b12;
+      font-family: Inter, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at top, rgba(255,138,29,.12), transparent 55%), #070b12;
+      color: #e7edf8;
+    }
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .header h1 {
+      font-size: 28px;
+      margin: 0;
+    }
+    .button {
+      appearance: none;
+      border: 1px solid rgba(255,138,29,.5);
+      background: rgba(255,138,29,.08);
+      color: #fff;
+      border-radius: 14px;
+      padding: 12px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+    .button:hover { background: rgba(255,138,29,.18); }
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+    .controls-grid {
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      align-items: end;
+    }
+    .card {
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 20px;
+      padding: 24px;
+      background: rgba(15,19,26,.95);
+      box-shadow: 0 20px 60px rgba(0,0,0,.25);
+    }
+    .card h2 {
+      margin-top: 0;
+      font-size: 20px;
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #a1b0c3;
+    }
+    select, button {
+      width: 100%;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      background: #0f131a;
+      color: #e7edf8;
+      padding: 14px 14px;
+      font-size: 15px;
+      outline: none;
+    }
+    select:focus, button:focus { box-shadow: 0 0 0 4px rgba(255,138,29,.14); border-color: rgba(255,138,29,.7); }
+    .result-block {
+      display: grid;
+      gap: 14px;
+    }
+    .result-card {
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 18px;
+      background: #10151e;
+    }
+    .result-card h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+    }
+    .result-card p {
+      margin: 0;
+      color: #c9d1dc;
+      font-size: 14px;
+      line-height: 1.55;
+      overflow-wrap: anywhere;
+    }
+    .result-actions {
+      margin-top: 14px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .result-actions a {
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 14px;
+      border: 1px solid rgba(255,138,29,.5);
+      background: rgba(255,138,29,.08);
+      color: #fff;
+      padding: 10px 16px;
+      font-weight: 700;
+      transition: .2s ease;
+    }
+    .result-actions a:hover { background: rgba(255,138,29,.18); }
+    .note {
+      color: #94a3b8;
+      font-size: 13px;
+      margin-top: 12px;
+    }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div>
+        <h1>Каталог по автомобилю</h1>
+        <p class="note">Выберите марку и модель, чтобы увидеть доступный автомобильный каталог.</p>
+      </div>
+      <button class="button" id="backBtn">Назад к поиску</button>
+    </div>
+
+    <div class="grid controls-grid">
+      <div class="card">
+        <h2>Выбор автомобиля</h2>
+        <div>
+          <label for="makeSelect">Марка</label>
+          <select id="makeSelect" disabled><option value="">Загрузка...</option></select>
+        </div>
+        <div>
+          <label for="modelSelect">Модель</label>
+          <select id="modelSelect" disabled><option value="">Сначала выберите марку</option></select>
+        </div>
+        <div>
+          <label for="categorySelect">Категория</label>
+          <select id="categorySelect" disabled><option value="">Категории пока не подключены</option></select>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>По VIN на Partsouq</h2>
+        <div>
+          <label for="vinInput">VIN / Frame</label>
+          <input id="vinInput" type="text" placeholder="Введите VIN или Frame" />
+        </div>
+        <div style="margin-top: 12px;">
+          <button id="partsouqVinBtn" class="button">Открыть каталог Partsouq</button>
+        </div>
+        <p class="note">Сайт Partsouq поддерживает поиск по VIN/Frame на своей странице поиска. В результате откроется поиск на их сайте.</p>
+      </div>
+
+      <div class="card">
+        <h2>Результаты EPC</h2>
+        <div id="catalogResults" class="result-block">
+          <div class="result-card">
+            <h3>Загрузка...</h3>
+            <p>Загружаем доступные бренды и модели из публичной базы.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const makeSelect = document.getElementById('makeSelect');
+    const modelSelect = document.getElementById('modelSelect');
+    const categorySelect = document.getElementById('categorySelect');
+    const catalogResults = document.getElementById('catalogResults');
+    const backBtn = document.getElementById('backBtn');
+    const vinInput = document.getElementById('vinInput');
+    const partsouqVinBtn = document.getElementById('partsouqVinBtn');
+    let catalogBrands = {};
+
+    function populateSelect(select, items, placeholder) {
+      select.innerHTML = '';
+      const emptyOption = document.createElement('option');
+      emptyOption.value = '';
+      emptyOption.textContent = placeholder;
+      select.appendChild(emptyOption);
+      items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item;
+        select.appendChild(option);
+      });
+    }
+
+    function showMessage(title, description) {
+      catalogResults.innerHTML = `
+        <div class="result-card">
+          <h3>${title}</h3>
+          <p>${description}</p>
+        </div>
+      `;
+    }
+
+    async function loadBrands() {
+      showMessage('Загрузка...', 'Получаем список брендов и моделей из публичной базы.');
+      makeSelect.disabled = true;
+
+      try {
+        const apiUrl = 'http://localhost:3000/api/catalog/brands';
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+          throw new Error(`Сервер ответил с ошибкой ${response.status}`);
+        }
+        
+        const json = await response.json();
+        if (!json.ok) {
+          throw new Error(json.error || 'Неизвестная ошибка');
+        }
+
+        catalogBrands = json.brands || {};
+        const brands = Object.keys(catalogBrands).sort((a, b) => a.localeCompare(b, 'ru'));
+        
+        if (brands.length === 0) {
+          throw new Error('Список брендов пуст');
+        }
+        
+        populateSelect(makeSelect, brands, 'Выберите марку');
+        makeSelect.disabled = false;
+        modelSelect.disabled = true;
+        populateSelect(modelSelect, [], 'Сначала выберите марку');
+        categorySelect.disabled = true;
+        populateSelect(categorySelect, [], 'Категории пока не подключены');
+        showMessage('Выберите марку', `Загружено ${brands.length} брендов. Модели будут загружены после выбора.`);
+      } catch (error) {
+        console.error('Load brands error:', error);
+        showMessage('Ошибка загрузки', `${error.message}. Убедитесь, что сервер запущен на http://localhost:3000`);
+      }
+    }
+
+    function updateModels() {
+      const brand = makeSelect.value;
+      if (!brand) {
+        modelSelect.disabled = true;
+        populateSelect(modelSelect, [], 'Сначала выберите марку');
+        categorySelect.disabled = true;
+        populateSelect(categorySelect, [], 'Категории пока не подключены');
+        showMessage('Выберите марку', 'Сначала выберите производителя автомобиля.');
+        return;
+      }
+
+      const models = Array.isArray(catalogBrands[brand]) ? catalogBrands[brand] : [];
+      populateSelect(modelSelect, models.sort((a, b) => a.localeCompare(b, 'ru')), 'Выберите модель');
+      modelSelect.disabled = false;
+      categorySelect.disabled = true;
+      populateSelect(categorySelect, [], 'Категории пока не подключены');
+      showMessage('Выберите модель', `Найдено ${models.length} моделей для ${brand}.`);
+    }
+
+    function updateCatalog() {
+      const brand = makeSelect.value;
+      const model = modelSelect.value;
+      if (!brand || !model) {
+        showMessage('Выберите модель', 'Сначала выберите марку и модель автомобиля.');
+        return;
+      }
+
+      catalogResults.innerHTML = `
+        <div class="result-card">
+          <h3>${brand} — ${model}</h3>
+          <p>Это данные из публичной базы моделей GitHub. Категории и комплектации можно подключить позже.</p>
+        </div>
+      `;
+    }
+
+    function openPartsouqVinCatalog() {
+      const vin = (vinInput.value || '').trim();
+      if (!vin) {
+        window.open('https://partsouq.com/en/catalog/genuine', '_blank');
+        return;
+      }
+      const url = `https://partsouq.com/en/search/all?q=${encodeURIComponent(vin)}`;
+      window.open(url, '_blank');
+    }
+
+    backBtn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    partsouqVinBtn.addEventListener('click', openPartsouqVinCatalog);
+    makeSelect.addEventListener('change', updateModels);
+    modelSelect.addEventListener('change', updateCatalog);
+
+    loadBrands();
+  </script>
+</body>
+</html>
