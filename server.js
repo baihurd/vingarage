@@ -1,24 +1,19 @@
 import express from "express";
 import cors from "cors";
-import pg from "pg";
+import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const { Pool } = pg;
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// PostgreSQL connection pool
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  // Fallback to local development
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'vingarage',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'password',
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+// SQLite database
+const DATA_DIR = process.env.NODE_ENV === 'production' ? '/tmp' : __dirname;
+const DB_PATH = path.join(DATA_DIR, 'vingarage.db');
+const db = new Database(DB_PATH);
+
+// Enable foreign keys
+db.pragma('journal_mode = WAL');
 
 app.use(cors());
 app.use(express.json());
@@ -186,25 +181,25 @@ app.post("/api/mikado/search", async (req, res) => {
   }
 });
 
-async function initDatabase() {
+function initDatabase() {
   try {
-    await pool.query(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS earnings (
         id TEXT PRIMARY KEY,
         amount INTEGER NOT NULL,
         comment TEXT,
-        timestamp BIGINT NOT NULL
+        timestamp INTEGER NOT NULL
       );
     `);
 
-    await pool.query(`
+    db.exec(`
       CREATE TABLE IF NOT EXISTS clients (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         phone TEXT,
         vin TEXT,
         note TEXT,
-        timestamp BIGINT NOT NULL
+        timestamp INTEGER NOT NULL
       );
     `);
 
@@ -217,32 +212,25 @@ async function initDatabase() {
 // Initialize database on startup
 initDatabase();
 
-async function loadEarningsFile() {
+function loadEarningsFile() {
   try {
-    const result = await pool.query('SELECT * FROM earnings ORDER BY timestamp DESC');
-    return result.rows;
+    const data = db.prepare('SELECT * FROM earnings ORDER BY timestamp DESC').all();
+    return data;
   } catch (error) {
     console.error('loadEarningsFile error:', error);
     return [];
   }
 }
 
-async function saveEarningsFile(entries) {
-  // This function is deprecated - use direct pool queries instead
-}
-
-async function loadClientsFile() {
+function loadClientsFile() {
   try {
-    const result = await pool.query('SELECT * FROM clients ORDER BY timestamp DESC');
-    return result.rows;
+    const data = db.prepare('SELECT * FROM clients ORDER BY timestamp DESC').all();
+    return data;
   } catch (error) {
     console.error('loadClientsFile error:', error);
     return [];
   }
 }
-
-async function saveClientsFile(entries) {
-  // This function is deprecated - use direct pool queries instead
 }
 
 app.get("/api/earnings", async (req, res) => {
@@ -255,7 +243,17 @@ app.get("/api/earnings", async (req, res) => {
   }
 });
 
-app.post("/api/earnings", async (req, res) => {
+app.get("/api/earnings", (req, res) => {
+  try {
+    const entries = loadEarningsFile();
+    return res.json({ ok: true, entries });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить данные" });
+  }
+});
+
+app.post("/api/earnings", (req, res) => {
   try {
     const amount = Number(req.body.amount);
     const comment = String(req.body.comment || "").trim();
@@ -266,10 +264,8 @@ app.post("/api/earnings", async (req, res) => {
     const id = `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const timestamp = Date.now();
     
-    await pool.query(
-      'INSERT INTO earnings (id, amount, comment, timestamp) VALUES ($1, $2, $3, $4)',
-      [id, amount, comment, timestamp]
-    );
+    db.prepare('INSERT INTO earnings (id, amount, comment, timestamp) VALUES (?, ?, ?, ?)')
+      .run(id, amount, comment, timestamp);
 
     const entry = {
       id,
@@ -284,14 +280,14 @@ app.post("/api/earnings", async (req, res) => {
   }
 });
 
-app.delete("/api/earnings/:id", async (req, res) => {
+app.delete("/api/earnings/:id", (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
     if (!id) {
       return res.status(400).json({ ok: false, error: "Не передан id" });
     }
     
-    await pool.query('DELETE FROM earnings WHERE id = $1', [id]);
+    db.prepare('DELETE FROM earnings WHERE id = ?').run(id);
     return res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -309,7 +305,17 @@ app.get("/api/clients", async (req, res) => {
   }
 });
 
-app.post("/api/clients", async (req, res) => {
+app.get("/api/clients", (req, res) => {
+  try {
+    const entries = loadClientsFile();
+    return res.json({ ok: true, entries });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить клиентов" });
+  }
+});
+
+app.post("/api/clients", (req, res) => {
   try {
     const name = String(req.body.name || "").trim();
     const phone = String(req.body.phone || "").trim();
@@ -323,10 +329,9 @@ app.post("/api/clients", async (req, res) => {
     const id = `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const timestamp = Date.now();
 
-    await pool.query(
-      'INSERT INTO clients (id, name, phone, vin, note, timestamp) VALUES ($1, $2, $3, $4, $5, $6)',
-      [id, name, phone, vin, note, timestamp]
-    );
+    db.prepare(
+      'INSERT INTO clients (id, name, phone, vin, note, timestamp) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(id, name, phone, vin, note, timestamp);
 
     const entry = {
       id,
@@ -343,14 +348,14 @@ app.post("/api/clients", async (req, res) => {
   }
 });
 
-app.delete("/api/clients/:id", async (req, res) => {
+app.delete("/api/clients/:id", (req, res) => {
   try {
     const id = String(req.params.id || "").trim();
     if (!id) {
       return res.status(400).json({ ok: false, error: "Не передан id" });
     }
     
-    await pool.query('DELETE FROM clients WHERE id = $1', [id]);
+    db.prepare('DELETE FROM clients WHERE id = ?').run(id);
     return res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -429,8 +434,8 @@ app.listen(PORT, () => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, closing connections...');
-  await pool.end();
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, closing database...');
+  db.close();
   process.exit(0);
 });
