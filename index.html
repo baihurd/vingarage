@@ -341,15 +341,13 @@
     }
 
     .earnings-modal-close {
-      position: absolute;
-      top: 18px;
-      right: 18px;
       background: none;
       border: none;
       color: var(--text);
       font-size: 24px;
       cursor: pointer;
       padding: 6px;
+      margin-left: auto;
     }
 
     .earnings-summary {
@@ -1057,8 +1055,8 @@
     <div class="earnings-modal-content">
       <div class="earnings-modal-header">
         <h2 class="section-title">Отчет по заработку</h2>
+        <button class="earnings-modal-close" id="earningsModalClose" type="button">✕</button>
       </div>
-      <button class="earnings-modal-close" id="earningsModalClose" type="button">✕</button>
       <div class="earnings-summary">
         <div>Общая сумма</div>
         <strong id="earningsTotal">0 ₽</strong>
