@@ -331,11 +331,13 @@
     }
 
     .earnings-modal-header {
+      position: relative;
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-start;
       align-items: center;
       gap: 16px;
       margin-bottom: 18px;
+      padding-right: 46px;
     }
 
     .earnings-modal-header .section-title {
@@ -344,13 +346,16 @@
     }
 
     .earnings-modal-close {
+      position: absolute;
+      top: 0;
+      right: 0;
       background: none;
       border: none;
       color: var(--text);
       font-size: 24px;
       cursor: pointer;
-      padding: 6px;
-      margin-left: auto;
+      padding: 10px;
+      margin-left: 0;
     }
 
     .earnings-summary {
@@ -1134,16 +1139,12 @@
           <label for="code">Код детали</label>
           <input id="code" placeholder="Например, 0265008135 или MAG3482" />
         </div>
-        <div>
-          <label for="status">Статус</label>
-          <select id="status">
-            <option value="all">Все статусы</option>
-            <option value="our_stock">Наш склад</option>
-            <option value="partner_stock">Склад партнера</option>
-            <option value="delayed">Отложенный спрос</option>
-            <option value="container">Контейнер</option>
-            <option value="unavailable">Недоступно</option>
-          </select>
+        <div class="checkbox-dropdown-wrapper" id="statusWrapper">
+          <label>Статус</label>
+          <button type="button" id="statusToggle" class="checkbox-dropdown-toggle">Выбрать статусы</button>
+          <div id="statusDropdown" class="checkbox-dropdown" style="display:none;">
+            <div id="statusFilters" class="checkbox-group"></div>
+          </div>
         </div>
         <div class="checkbox-dropdown-wrapper" id="brandWrapper" style="display:none;">
           <label>Бренды</label>
@@ -1170,7 +1171,10 @@
       <div class="card results-card">
         <div class="results-card-header">
           <h2 class="section-title">Результаты</h2>
-          <button id="priceSortBtn" class="link-button secondary sort-button" type="button">Сортировать: дорогие → дешевые</button>
+          <div style="display:flex; flex-wrap:wrap; gap:10px;">
+            <button id="priceSortBtn" class="link-button secondary sort-button" type="button">Сортировать: дорогие → дешевые</button>
+            <button id="deliverySortBtn" class="link-button secondary sort-button" type="button">Сортировать: сроки</button>
+          </div>
         </div>
         <div id="results" class="empty">
           Введи код детали и нажми «Искать».
@@ -1230,7 +1234,6 @@
 
     const els = {
       code: document.getElementById('code'),
-      status: document.getElementById('status'),
       results: document.getElementById('results'),
       detail: document.getElementById('detail'),
       searchBtn: document.getElementById('searchBtn'),
@@ -1242,6 +1245,10 @@
       makeToggle: document.getElementById('makeToggle'),
       makeDropdown: document.getElementById('makeDropdown'),
       makeFilters: document.getElementById('makeFilters'),
+      statusWrapper: document.getElementById('statusWrapper'),
+      statusToggle: document.getElementById('statusToggle'),
+      statusDropdown: document.getElementById('statusDropdown'),
+      statusFilters: document.getElementById('statusFilters'),
       vinQuery: document.getElementById('vinQuery'),
       vinSearchBtn: document.getElementById('vinSearchBtn'),
       vinSite: document.getElementById('vinSite'),
@@ -1256,7 +1263,17 @@
     let priceSortDesc = true;
     const hasInitBrands = { value: false };
     const hasInitMakes = { value: false };
-
+    const STATUS_LABELS = {
+      our_stock: 'Наш склад',
+      partner_stock: 'Склад партнёра',
+      delayed: 'Отложенный спрос',
+      container: 'Контейнер',
+      unavailable: 'Недоступно',
+    };
+    let selectedStatuses = Object.keys(STATUS_LABELS);
+    const hasInitStatuses = { value: false };
+    let sortMode = 'price';
+    let sortDeliveryAsc = true;
 
     function money(value) {
       if (value == null || Number.isNaN(Number(value))) return '—';
@@ -1744,7 +1761,7 @@
     function getMikadoLink(item) {
       const code = item.mikadoCode || item.code;
       if (!code) return '';
-      return `https://mikado-parts.ru/office/SearchCodeG.asp?CODE=${encodeURIComponent(code)}`;
+      return `https://mikado-parts.ru/office/galleyp.asp?code=${encodeURIComponent(code)}`;
     }
 
     function bindDetailAddButton() {
@@ -1758,10 +1775,9 @@
     }
 
     function filterItems(items) {
-      const status = els.status.value;
       let filtered = items;
-      if (status !== 'all') {
-        filtered = filtered.filter(item => getNormalizedAvailability(item) === status);
+      if (selectedStatuses.length > 0 && selectedStatuses.length < Object.keys(STATUS_LABELS).length) {
+        filtered = filtered.filter(item => selectedStatuses.includes(getNormalizedAvailability(item)));
       }
       if (selectedBrands.length > 0) {
         filtered = filtered.filter(item => selectedBrands.includes(item.brand));
@@ -1793,12 +1809,12 @@
       }
     }
 
-    function renderFilterList(allValues, selectedList, initFlag, container, toggleEl, emptyLabel, multiLabel) {
+    function renderFilterList(allValues, selectedList, initFlag, container, toggleEl, emptyLabel, multiLabel, labelMap) {
       syncSelected(allValues, selectedList, initFlag);
       container.innerHTML = allValues.map(value => `
         <label>
           <input type="checkbox" value="${value}"${selectedList.includes(value) ? ' checked' : ''} />
-          ${value}
+          ${labelMap && labelMap[value] ? labelMap[value] : value}
         </label>
       `).join('');
 
@@ -1819,6 +1835,44 @@
       updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
     }
 
+    function getDeliveryDays(item) {
+      const raw = String(item.stockText || item.warehouse || '').toLowerCase();
+      const daysMatch = raw.match(/(\d+)\s*дн/);
+      if (daysMatch) {
+        return Number(daysMatch[1]);
+      }
+      if (/в наличии|наш склад|есть\b|шт|ед\.|ед\b/.test(raw) && !/дн/.test(raw)) {
+        return 0;
+      }
+      if (/контейнер|варианты|гипер/.test(raw) || getNormalizedAvailability(item) === 'container') {
+        return 30;
+      }
+      if (getNormalizedAvailability(item) === 'partner_stock') {
+        return 20;
+      }
+      if (getNormalizedAvailability(item) === 'delayed') {
+        return 15;
+      }
+      return 999;
+    }
+
+    function updateSortButtons() {
+      updatePriceSortButton();
+      updateDeliverySortButton();
+    }
+
+    function updateDeliverySortButton() {
+      const btn = document.getElementById('deliverySortBtn');
+      if (!btn) return;
+      if (sortMode === 'delivery') {
+        btn.textContent = sortDeliveryAsc
+          ? 'Сортировать: быстрые → длинные'
+          : 'Сортировать: длинные → быстрые';
+      } else {
+        btn.textContent = 'Сортировать: сроки';
+      }
+    }
+
     function renderResults(items) {
       currentItems = items;
       const brands = [...new Set(items.map(item => item.brand).filter(Boolean))].sort();
@@ -1832,6 +1886,11 @@
         els.brandWrapper.style.display = 'none';
       }
 
+      const statusValues = Object.keys(STATUS_LABELS);
+      els.statusWrapper.style.display = 'block';
+      renderFilterList(statusValues, selectedStatuses, hasInitStatuses, els.statusFilters, els.statusToggle, 'Ничего не выбрано', 'Статусы', STATUS_LABELS);
+      els.statusToggle.disabled = false;
+
       if (makes.length > 0) {
         els.makeWrapper.style.display = 'block';
         renderFilterList(makes, selectedMakes, hasInitMakes, els.makeFilters, els.makeToggle, 'Ничего не выбрано', 'Марки');
@@ -1842,6 +1901,13 @@
 
       const filtered = filterItems(items);
       const sorted = filtered.slice().sort((a, b) => {
+        if (sortMode === 'delivery') {
+          const timeA = getDeliveryDays(a);
+          const timeB = getDeliveryDays(b);
+          if (timeA !== timeB) {
+            return sortDeliveryAsc ? timeA - timeB : timeB - timeA;
+          }
+        }
         const priceA = Number(a.priceOpt != null ? a.priceOpt : a.priceRetail || 0);
         const priceB = Number(b.priceOpt != null ? b.priceOpt : b.priceRetail || 0);
         return priceSortDesc ? priceB - priceA : priceA - priceB;
@@ -1998,35 +2064,55 @@
     els.code.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') search();
     });
-    els.status.addEventListener('change', () => {
-      renderResults(currentItems);
-    });
 
     function updatePriceSortButton() {
       const btn = document.getElementById('priceSortBtn');
       if (!btn) return;
-      btn.textContent = priceSortDesc
-        ? 'Сортировать: дорогие → дешевые'
-        : 'Сортировать: дешевые → дорогие';
+      if (sortMode === 'price') {
+        btn.textContent = priceSortDesc
+          ? 'Сортировать: дорогие → дешевые'
+          : 'Сортировать: дешевые → дорогие';
+      } else {
+        btn.textContent = 'Сортировать: цена';
+      }
     }
 
     document.getElementById('priceSortBtn')?.addEventListener('click', () => {
-      priceSortDesc = !priceSortDesc;
-      updatePriceSortButton();
+      if (sortMode === 'price') {
+        priceSortDesc = !priceSortDesc;
+      }
+      sortMode = 'price';
+      updateSortButtons();
       renderResults(currentItems);
     });
 
-    updatePriceSortButton();
+    document.getElementById('deliverySortBtn')?.addEventListener('click', () => {
+      if (sortMode === 'delivery') {
+        sortDeliveryAsc = !sortDeliveryAsc;
+      }
+      sortMode = 'delivery';
+      updateSortButtons();
+      renderResults(currentItems);
+    });
+
+    updateSortButtons();
 
     loadCart();
     renderCart();
     els.brandToggle.addEventListener('click', () => {
       els.brandDropdown.style.display = els.brandDropdown.style.display === 'block' ? 'none' : 'block';
       els.makeDropdown.style.display = 'none';
+      els.statusDropdown.style.display = 'none';
     });
     els.makeToggle.addEventListener('click', () => {
       els.makeDropdown.style.display = els.makeDropdown.style.display === 'block' ? 'none' : 'block';
       els.brandDropdown.style.display = 'none';
+      els.statusDropdown.style.display = 'none';
+    });
+    els.statusToggle.addEventListener('click', () => {
+      els.statusDropdown.style.display = els.statusDropdown.style.display === 'block' ? 'none' : 'block';
+      els.brandDropdown.style.display = 'none';
+      els.makeDropdown.style.display = 'none';
     });
     document.addEventListener('click', (event) => {
       if (!els.brandWrapper.contains(event.target) && event.target !== els.brandToggle) {
@@ -2034,6 +2120,9 @@
       }
       if (!els.makeWrapper.contains(event.target) && event.target !== els.makeToggle) {
         els.makeDropdown.style.display = 'none';
+      }
+      if (!els.statusWrapper.contains(event.target) && event.target !== els.statusToggle) {
+        els.statusDropdown.style.display = 'none';
       }
     });
 
