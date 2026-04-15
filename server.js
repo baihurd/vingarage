@@ -1,19 +1,24 @@
 import express from "express";
 import cors from "cors";
-import fs from "fs/promises";
+import pg from "pg";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const { Pool } = pg;
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Use persistent disk on Render, local storage for development
-const DATA_DIR = process.env.NODE_ENV === 'production' ? '/var/data' : __dirname;
-const EARNINGS_FILE_PATH = path.join(DATA_DIR, 'earnings.json');
-const CLIENTS_FILE_PATH = path.join(DATA_DIR, 'clients.json');
-
-let earningsEntriesMemory = null;
-let clientsEntriesMemory = null;
+// PostgreSQL connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  // Fallback to local development
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'vingarage',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'password',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+});
 
 app.use(cors());
 app.use(express.json());
@@ -181,58 +186,63 @@ app.post("/api/mikado/search", async (req, res) => {
   }
 });
 
-async function loadEarningsFile() {
-  if (earningsEntriesMemory !== null) {
-    return earningsEntriesMemory;
-  }
-
+async function initDatabase() {
   try {
-    const raw = await fs.readFile(EARNINGS_FILE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
-    earningsEntriesMemory = Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    if (error.code === 'ENOENT') {
-      earningsEntriesMemory = [];
-      await fs.writeFile(EARNINGS_FILE_PATH, '[]', 'utf-8');
-    } else {
-      console.error('loadEarningsFile error:', error);
-      earningsEntriesMemory = [];
-    }
-  }
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS earnings (
+        id TEXT PRIMARY KEY,
+        amount INTEGER NOT NULL,
+        comment TEXT,
+        timestamp BIGINT NOT NULL
+      );
+    `);
 
-  return earningsEntriesMemory;
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS clients (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT,
+        vin TEXT,
+        note TEXT,
+        timestamp BIGINT NOT NULL
+      );
+    `);
+
+    console.log('Database tables initialized');
+  } catch (error) {
+    console.error('Database initialization error:', error);
+  }
+}
+
+// Initialize database on startup
+initDatabase();
+
+async function loadEarningsFile() {
+  try {
+    const result = await pool.query('SELECT * FROM earnings ORDER BY timestamp DESC');
+    return result.rows;
+  } catch (error) {
+    console.error('loadEarningsFile error:', error);
+    return [];
+  }
 }
 
 async function saveEarningsFile(entries) {
-  earningsEntriesMemory = Array.isArray(entries) ? entries : [];
-  await fs.writeFile(EARNINGS_FILE_PATH, JSON.stringify(earningsEntriesMemory, null, 2), 'utf-8');
+  // This function is deprecated - use direct pool queries instead
 }
 
 async function loadClientsFile() {
-  if (clientsEntriesMemory !== null) {
-    return clientsEntriesMemory;
-  }
-
   try {
-    const raw = await fs.readFile(CLIENTS_FILE_PATH, 'utf-8');
-    const parsed = JSON.parse(raw);
-    clientsEntriesMemory = Array.isArray(parsed) ? parsed : [];
+    const result = await pool.query('SELECT * FROM clients ORDER BY timestamp DESC');
+    return result.rows;
   } catch (error) {
-    if (error.code === 'ENOENT') {
-      clientsEntriesMemory = [];
-      await fs.writeFile(CLIENTS_FILE_PATH, '[]', 'utf-8');
-    } else {
-      console.error('loadClientsFile error:', error);
-      clientsEntriesMemory = [];
-    }
+    console.error('loadClientsFile error:', error);
+    return [];
   }
-
-  return clientsEntriesMemory;
 }
 
 async function saveClientsFile(entries) {
-  clientsEntriesMemory = Array.isArray(entries) ? entries : [];
-  await fs.writeFile(CLIENTS_FILE_PATH, JSON.stringify(clientsEntriesMemory, null, 2), 'utf-8');
+  // This function is deprecated - use direct pool queries instead
 }
 
 app.get("/api/earnings", async (req, res) => {
@@ -253,15 +263,20 @@ app.post("/api/earnings", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Неверная сумма" });
     }
 
-    const entries = await loadEarningsFile();
+    const id = `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const timestamp = Date.now();
+    
+    await pool.query(
+      'INSERT INTO earnings (id, amount, comment, timestamp) VALUES ($1, $2, $3, $4)',
+      [id, amount, comment, timestamp]
+    );
+
     const entry = {
-      id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id,
       amount,
       comment,
-      timestamp: Date.now(),
+      timestamp,
     };
-    entries.push(entry);
-    await saveEarningsFile(entries);
     return res.json({ ok: true, entry });
   } catch (error) {
     console.error(error);
@@ -275,9 +290,8 @@ app.delete("/api/earnings/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ ok: false, error: "Не передан id" });
     }
-    const entries = await loadEarningsFile();
-    const filtered = entries.filter((entry) => entry.id !== id);
-    await saveEarningsFile(filtered);
+    
+    await pool.query('DELETE FROM earnings WHERE id = $1', [id]);
     return res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -306,17 +320,22 @@ app.post("/api/clients", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Укажите имя клиента" });
     }
 
-    const entries = await loadClientsFile();
+    const id = `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const timestamp = Date.now();
+
+    await pool.query(
+      'INSERT INTO clients (id, name, phone, vin, note, timestamp) VALUES ($1, $2, $3, $4, $5, $6)',
+      [id, name, phone, vin, note, timestamp]
+    );
+
     const entry = {
-      id: `client-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      id,
       name,
       phone,
       vin,
       note,
-      timestamp: Date.now(),
+      timestamp,
     };
-    entries.push(entry);
-    await saveClientsFile(entries);
     return res.json({ ok: true, entry });
   } catch (error) {
     console.error(error);
@@ -330,9 +349,8 @@ app.delete("/api/clients/:id", async (req, res) => {
     if (!id) {
       return res.status(400).json({ ok: false, error: "Не передан id" });
     }
-    const entries = await loadClientsFile();
-    const filtered = entries.filter((entry) => entry.id !== id);
-    await saveClientsFile(filtered);
+    
+    await pool.query('DELETE FROM clients WHERE id = $1', [id]);
     return res.json({ ok: true });
   } catch (error) {
     console.error(error);
@@ -408,4 +426,11 @@ app.get("/api/catalog/models", async (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Proxy started: http://localhost:${PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, closing connections...');
+  await pool.end();
+  process.exit(0);
 });
