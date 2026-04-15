@@ -212,6 +212,17 @@
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
     }
 
+    #clientsBtn {
+      background: linear-gradient(90deg, #ffb55b, #ff9500);
+      color: #111;
+      border-color: #ff9b1f;
+      box-shadow: 0 10px 24px rgba(255, 149, 0, 0.22);
+    }
+
+    #clientsBtn:hover {
+      background: linear-gradient(90deg, #ffd57d, #ff9f1a);
+    }
+
     .link-button:hover {
       background: #2a3450;
       color: #fff;
@@ -305,13 +316,13 @@
     .earnings-badge span {
       display: block;
       font-size: 12px;
-      color: var(--muted);
+      color: #111;
     }
 
     .earnings-badge strong {
       font-size: 16px;
       font-weight: 800;
-      color: #fff;
+      color: #111;
     }
 
     .earnings-modal {
@@ -339,7 +350,7 @@
       background: rgba(23, 26, 33, 0.98);
       border: 1px solid var(--line);
       border-radius: 24px;
-      box-shadow: var(--shadow);
+      box-shadow: none;
       padding: 24px;
       position: relative;
     }
@@ -367,27 +378,43 @@
       max-height: 90vh;
       overflow-y: auto;
       background: rgba(23, 26, 33, 0.98);
-      border: 1px solid var(--line);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-radius: 24px;
-      box-shadow: var(--shadow);
+      box-shadow: none;
       padding: 24px;
       position: relative;
     }
 
     .clients-modal-header {
+      position: relative;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: flex-start;
+      gap: 16px;
       margin-bottom: 18px;
+      padding-right: 42px;
     }
 
     .clients-modal-close {
+      position: absolute;
+      top: 8px;
+      right: 6px;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: none;
-      color: var(--text);
-      font-size: 24px;
+      color: #fff;
+      font-size: 16px;
       cursor: pointer;
-      padding: 6px;
+      padding: 0;
+      z-index: 2;
+    }
+
+    .clients-modal-close:hover {
+      color: var(--accent);
     }
 
     .clients-summary {
@@ -500,15 +527,25 @@
 
     .earnings-modal-close {
       position: absolute;
-      top: 0;
-      right: 0;
+      top: 8px;
+      right: 6px;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: none;
       border: none;
-      color: var(--text);
-      font-size: 24px;
+      color: #fff;
+      font-size: 16px;
       cursor: pointer;
-      padding: 10px;
+      padding: 0;
       margin-left: 0;
+      z-index: 2;
+    }
+
+    .earnings-modal-close:hover {
+      color: var(--accent);
     }
 
     .earnings-summary {
@@ -519,8 +556,8 @@
       margin-bottom: 18px;
       padding: 16px;
       border-radius: 18px;
-      background: rgba(255, 138, 29, 0.08);
-      border: 1px solid rgba(255, 138, 29, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
     .earnings-summary strong {
@@ -734,26 +771,29 @@
       max-height: 80vh;
       overflow-y: auto;
       position: relative;
+      box-shadow: none;
     }
 
     .cart-modal-close {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 8px;
+      right: 6px;
       background: none;
       border: none;
       color: var(--text);
-      font-size: 28px;
+      font-size: 16px;
       cursor: pointer;
       padding: 0;
-      width: 32px;
-      height: 32px;
+      width: 24px;
+      height: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
 
     .cart-modal-close:hover {
+      color: var(--accent);
+    }
       color: var(--accent);
     }
 
@@ -1044,11 +1084,14 @@
     }
 
     .useful-sites-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       background: #1f2632;
       color: #f6f9ff;
       border: 1px solid rgba(255, 138, 29, 0.9);
       border-radius: 14px;
-      padding: 10px 16px;
+      padding: 10px 18px;
       font-weight: 700;
       cursor: pointer;
       box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
@@ -1090,17 +1133,38 @@
       justify-content: center;
       padding: 10px 18px;
       border-radius: 14px;
-      background: rgba(255, 138, 29, 0.12);
-      border: 1px solid rgba(255, 138, 29, 0.5);
-      color: #fff;
+      background: linear-gradient(90deg, #ffb55b, #ff9500);
+      border: 1px solid #ff9b1f;
+      color: #111;
       text-decoration: none;
       font-weight: 700;
-      transition: background .2s ease, transform .2s ease;
+      transition: background .2s ease, transform .2s ease, border-color .2s ease;
+      box-shadow: 0 10px 24px rgba(255, 149, 0, 0.22);
     }
 
     .order-status-btn:hover {
-      background: rgba(255, 138, 29, 0.22);
+      background: linear-gradient(90deg, #ffd57d, #ff9f1a);
       transform: translateY(-1px);
+      border-color: #ffb151;
+    }
+
+    .useful-sites-toggle {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(90deg, #ffb55b, #ff9500);
+      color: #111;
+      border: 1px solid #ff9b1f;
+      border-radius: 14px;
+      padding: 10px 18px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 10px 24px rgba(255, 149, 0, 0.22);
+      transition: .2s ease;
+    }
+
+    .useful-sites-toggle:hover {
+      background: linear-gradient(90deg, #ffd57d, #ff9f1a);
     }
 
     .useful-sites:hover .useful-sites-dropdown {
@@ -1684,32 +1748,29 @@
         vinInput.value = '';
         commentInput.value = '';
         updateEarningsDisplay();
-        renderEarningsEntries();
-      }
+      renderEarningsEntries();
     }
+}
 
-      if (!response.ok || !data.ok) {
-        throw new Error(data.error || 'Ошибка загрузки данных');
-      }
-      earningsEntries = Array.isArray(data.entries) ? data.entries : [];
-    } catch (error) {
-      console.error('fetchEarnings error:', error);
-      earningsEntries = loadLocalEarnings();
-    }
+async function loadEarningsData() {
+  await fetchEarnings();
+  updateEarningsDisplay();
+  renderEarningsEntries();
+}
 
-    async function fetchClients() {
-      try {
-        const response = await fetch('/api/clients');
-        const data = await response.json();
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || 'Ошибка загрузки клиентов');
-        }
-        clientEntries = Array.isArray(data.entries) ? data.entries : [];
-      } catch (error) {
-        console.error('fetchClients error:', error);
-        clientEntries = loadLocalClients();
-      }
+async function fetchClients() {
+  try {
+    const response = await fetch('/api/clients');
+    const data = await response.json();
+    if (!response.ok || !data.ok) {
+      throw new Error(data.error || 'Ошибка загрузки клиентов');
     }
+    clientEntries = Array.isArray(data.entries) ? data.entries : [];
+  } catch (error) {
+    console.error('fetchClients error:', error);
+    clientEntries = loadLocalClients();
+  }
+}
 
     function updateClientsDisplay() {
       const total = clientEntries.length;
