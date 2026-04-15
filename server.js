@@ -1,12 +1,12 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EARNINGS_FILE = path.join(__dirname, "earnings.json");
+
+let earningsEntriesMemory = [];
 
 app.use(cors());
 app.use(express.json());
@@ -175,25 +175,11 @@ app.post("/api/mikado/search", async (req, res) => {
 });
 
 async function loadEarningsFile() {
-  try {
-    if (!fs.existsSync(EARNINGS_FILE)) {
-      await fs.promises.writeFile(EARNINGS_FILE, JSON.stringify([]), "utf-8");
-    }
-    const raw = await fs.promises.readFile(EARNINGS_FILE, "utf-8");
-    const parsed = JSON.parse(raw || "[]");
-    return Array.isArray(parsed) ? parsed : [];
-  } catch (error) {
-    console.error("earnings file error:", error);
-    return [];
-  }
+  return earningsEntriesMemory;
 }
 
 async function saveEarningsFile(entries) {
-  try {
-    await fs.promises.writeFile(EARNINGS_FILE, JSON.stringify(entries, null, 2), "utf-8");
-  } catch (error) {
-    console.error("earnings save error:", error);
-  }
+  earningsEntriesMemory = entries;
 }
 
 app.get("/api/earnings", async (req, res) => {
