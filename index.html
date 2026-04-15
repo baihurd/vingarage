@@ -782,6 +782,7 @@
           <select id="vinSite">
             <option value="partsouq">Partsouq</option>
             <option value="partsresource">Parts-resource</option>
+            <option value="17vin">17vin.com(Китай)</option>
           </select>
         </div>
         <div style="display:flex; align-items:flex-end;">
@@ -934,6 +935,12 @@
         url: (vin) => vin
           ? `https://www.parts-resource.ru/cats/?article=${encodeURIComponent(vin)}`
           : 'https://www.parts-resource.ru/cats/',
+      },
+      '17vin': {
+        label: '17vin.com(Китай)',
+        url: (vin) => vin
+          ? `https://www.17vin.com/vin/${encodeURIComponent(vin)}`
+          : 'https://www.17vin.com',
       },
     };
 
