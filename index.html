@@ -258,6 +258,221 @@
     }
 
     .detail-panel-close:hover {
+      color: #fff;
+    }
+
+    .earnings-badge {
+      position: fixed;
+      top: 16px;
+      right: 16px;
+      z-index: 1200;
+      padding: 12px 16px;
+      border-radius: 999px;
+      background: rgba(255, 138, 29, 0.16);
+      border: 1px solid rgba(255, 138, 29, 0.45);
+      color: #fff;
+      box-shadow: var(--shadow);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .earnings-badge:hover {
+      transform: translateY(-2px);
+      background: rgba(255, 138, 29, 0.25);
+    }
+
+    .earnings-badge span {
+      display: block;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .earnings-badge strong {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+    }
+
+    .earnings-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.72);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1300;
+      padding: 18px;
+    }
+
+    .earnings-modal.open {
+      display: flex;
+    }
+
+    .earnings-modal-content {
+      width: min(680px, 100%);
+      max-height: 90vh;
+      overflow-y: auto;
+      background: rgba(23, 26, 33, 0.98);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 24px;
+      position: relative;
+    }
+
+    .earnings-modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 6px;
+    }
+
+    .earnings-summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 138, 29, 0.08);
+      border: 1px solid rgba(255, 138, 29, 0.2);
+    }
+
+    .earnings-summary strong {
+      font-size: 24px;
+      color: #fff;
+    }
+
+    .earnings-entries {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .earnings-entry {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      align-items: start;
+    }
+
+    .earnings-entry-info {
+      display: grid;
+      gap: 4px;
+    }
+
+    .earnings-entry-date {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .earnings-entry-text {
+      font-size: 15px;
+      line-height: 1.45;
+      color: #e5e9f0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .earnings-entry-amount {
+      font-size: 18px;
+      font-weight: 800;
+      color: #22c55e;
+      text-align: right;
+      min-width: 120px;
+    }
+
+    .earnings-entry-actions {
+      display: grid;
+      gap: 10px;
+      justify-items: end;
+      align-items: center;
+    }
+
+    .earnings-entry-delete {
+      background: rgba(239, 68, 68, 0.14);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #ffb3b3;
+      border-radius: 14px;
+      padding: 10px 14px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      font-weight: 700;
+    }
+
+    .earnings-entry-delete:hover {
+      background: rgba(239, 68, 68, 0.24);
+    }
+
+    .earnings-form {
+      display: grid;
+      gap: 14px;
+    }
+
+    .earnings-form-grid {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: end;
+    }
+
+    .earnings-form textarea,
+    .earnings-form input {
+      width: 100%;
+    }
+
+    .earnings-form textarea {
+      min-height: 90px;
+      resize: vertical;
+      border-radius: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      background: #0f131a;
+      color: var(--text);
+    }
+
+    .earnings-form input {
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .earnings-empty {
+      padding: 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .detail-panel-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .detail-panel-close:hover {
       color: var(--accent);
     }
 
@@ -750,6 +965,38 @@
   </style>
 </head>
 <body>
+  <div class="earnings-badge" id="earningsBadge" title="Открыть отчет по заработку">
+    <div>
+      <span>Заработано</span>
+      <strong id="earningsAmount">0 ₽</strong>
+    </div>
+  </div>
+
+  <div class="earnings-modal" id="earningsModal">
+    <div class="earnings-modal-content">
+      <button class="earnings-modal-close" id="earningsModalClose" type="button">✕</button>
+      <h2 class="section-title">Отчет по заработку</h2>
+      <div class="earnings-summary">
+        <div>Общая сумма</div>
+        <strong id="earningsTotal">0 ₽</strong>
+      </div>
+      <div id="earningsEntries" class="earnings-entries"></div>
+      <div class="earnings-form">
+        <div class="earnings-form-grid">
+          <div>
+            <label for="earningsAmountInput">Сумма</label>
+            <input id="earningsAmountInput" type="number" min="0" step="0.01" placeholder="1000" />
+          </div>
+          <button id="earningsAddBtn" type="button">Добавить</button>
+        </div>
+        <div>
+          <label for="earningsCommentInput">Комментарий</label>
+          <textarea id="earningsCommentInput" placeholder="Например, комиссия, доставка, отзыв"></textarea>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="wrap">
     <div class="useful-sites">
       <button class="useful-sites-toggle">Полезные сайты</button>
@@ -951,6 +1198,132 @@
     }
 
     els.vinSearchBtn?.addEventListener('click', openVinSearch);
+
+    const EARNINGS_KEY = 'vin_garage_earnings';
+    let earningsEntries = [];
+
+    function loadEarnings() {
+      try {
+        const raw = localStorage.getItem(EARNINGS_KEY);
+        earningsEntries = raw ? JSON.parse(raw) : [];
+        if (!Array.isArray(earningsEntries)) earningsEntries = [];
+      } catch (error) {
+        earningsEntries = [];
+      }
+    }
+
+    function saveEarnings() {
+      localStorage.setItem(EARNINGS_KEY, JSON.stringify(earningsEntries));
+    }
+
+    function escapeText(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function updateEarningsDisplay() {
+      const total = earningsEntries.reduce((sum, entry) => sum + Number(entry.amount || 0), 0);
+      const badgeAmount = document.getElementById('earningsAmount');
+      const summaryAmount = document.getElementById('earningsTotal');
+      if (badgeAmount) badgeAmount.textContent = money(total);
+      if (summaryAmount) summaryAmount.textContent = money(total);
+    }
+
+    function renderEarningsEntries() {
+      const container = document.getElementById('earningsEntries');
+      if (!container) return;
+      if (earningsEntries.length === 0) {
+        container.innerHTML = '<div class="earnings-empty">Записей нет. Добавьте первую запись.</div>';
+        return;
+      }
+
+      const sorted = [...earningsEntries].sort((a, b) => b.timestamp - a.timestamp);
+      container.innerHTML = sorted.map((entry) => `
+        <div class="earnings-entry">
+          <div class="earnings-entry-info">
+            <div class="earnings-entry-date">${new Date(entry.timestamp).toLocaleString('ru-RU')}</div>
+            <div class="earnings-entry-text">${escapeText(entry.comment || 'Без комментария')}</div>
+          </div>
+          <div class="earnings-entry-actions">
+            <div class="earnings-entry-amount">${money(Number(entry.amount) || 0)}</div>
+            <button class="earnings-entry-delete" type="button" data-id="${entry.id}">Удалить</button>
+          </div>
+        </div>
+      `).join('');
+
+      container.querySelectorAll('.earnings-entry-delete').forEach((button) => {
+        button.addEventListener('click', () => {
+          const id = button.dataset.id;
+          earningsEntries = earningsEntries.filter((entry) => entry.id !== id);
+          saveEarnings();
+          renderEarningsEntries();
+          updateEarningsDisplay();
+        });
+      });
+    }
+
+    function openEarningsModal() {
+      const modal = document.getElementById('earningsModal');
+      if (!modal) return;
+      modal.classList.add('open');
+      updateEarningsDisplay();
+      renderEarningsEntries();
+    }
+
+    function closeEarningsModal() {
+      const modal = document.getElementById('earningsModal');
+      if (!modal) return;
+      modal.classList.remove('open');
+    }
+
+    function addEarningsEntry() {
+      const amountInput = document.getElementById('earningsAmountInput');
+      const commentInput = document.getElementById('earningsCommentInput');
+      if (!amountInput || !commentInput) return;
+
+      const amount = Number(String(amountInput.value).replace(',', '.'));
+      if (Number.isNaN(amount) || amount <= 0) {
+        amountInput.focus();
+        return;
+      }
+
+      earningsEntries.push({
+        id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        amount,
+        comment: commentInput.value.trim(),
+        timestamp: Date.now(),
+      });
+
+      saveEarnings();
+      amountInput.value = '';
+      commentInput.value = '';
+      renderEarningsEntries();
+      updateEarningsDisplay();
+    }
+
+    function initEarnings() {
+      loadEarnings();
+      updateEarningsDisplay();
+      renderEarningsEntries();
+
+      const badge = document.getElementById('earningsBadge');
+      const modal = document.getElementById('earningsModal');
+      const closeButton = document.getElementById('earningsModalClose');
+      const addButton = document.getElementById('earningsAddBtn');
+
+      badge?.addEventListener('click', openEarningsModal);
+      closeButton?.addEventListener('click', closeEarningsModal);
+      addButton?.addEventListener('click', addEarningsEntry);
+      modal?.addEventListener('click', (event) => {
+        if (event.target === modal) closeEarningsModal();
+      });
+    }
+
+    initEarnings();
 
     function normalizeAvailability(value) {
       const raw = String(value ?? '').trim().toLowerCase();
