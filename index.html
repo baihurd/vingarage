@@ -225,6 +225,123 @@
       flex-wrap: wrap;
     }
 
+    .detail-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100vh;
+      background: rgba(23, 26, 33, 0.98);
+      border-left: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      overflow-y: auto;
+      z-index: 1000;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+    }
+
+    .detail-panel.open {
+      transform: translateX(0);
+    }
+
+    .detail-panel-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 24px;
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    .detail-panel-close:hover {
+      color: var(--accent);
+    }
+
+    .cart-fab {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(90deg, var(--accent), #ff9a34);
+      border: none;
+      color: #111;
+      font-weight: 800;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(255, 138, 29, 0.4);
+      z-index: 999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .cart-fab:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 16px rgba(255, 138, 29, 0.6);
+    }
+
+    .cart-fab.show {
+      display: flex;
+    }
+
+    .cart-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 1001;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .cart-modal.open {
+      display: flex;
+    }
+
+    .cart-modal-content {
+      background: rgba(23, 26, 33, 0.98);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .cart-modal-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 28px;
+      cursor: pointer;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cart-modal-close:hover {
+      color: var(--accent);
+    }
+
     .hint {
       color: var(--muted);
       font-size: 13px;
@@ -1317,6 +1434,223 @@
         els.makeDropdown.style.display = 'none';
       }
     });
+
+    // =========== Мобильная боковая панель деталей и плавающая кнопка корзины ===========
+    const detailPanel = document.createElement('div');
+    detailPanel.className = 'detail-panel';
+    detailPanel.id = 'detailPanel';
+    detailPanel.innerHTML = `
+      <button class="detail-panel-close" id="detailPanelClose">✕</button>
+      <div id="detailPanelContent"></div>
+    `;
+    document.body.appendChild(detailPanel);
+
+    const cartFab = document.createElement('button');
+    cartFab.className = 'cart-fab';
+    cartFab.id = 'cartFab';
+    cartFab.textContent = '🛒';
+    cartFab.title = 'Открыть корзину';
+    document.body.appendChild(cartFab);
+
+    const cartModal = document.createElement('div');
+    cartModal.className = 'cart-modal';
+    cartModal.id = 'cartModal';
+    cartModal.innerHTML = `
+      <div class="cart-modal-content">
+        <button class="cart-modal-close" id="cartModalClose">✕</button>
+        <h2 style="margin-top: 20px; margin-bottom: 18px;">Корзина</h2>
+        <div id="cartModalContent"></div>
+      </div>
+    `;
+    document.body.appendChild(cartModal);
+
+    // Функции для управления боковой панелью деталей
+    function openDetailPanel(item) {
+      if (!item) return;
+      const av = availabilityMeta(item);
+      const mikadoLink = getMikadoLink(item);
+      const itemImage = getItemImage(item);
+      
+      let html = `
+        ${itemImage ? `<div class="detail-image-block"><img src="${itemImage}" alt="${item.name || item.code || 'Изображение'}" /></div>` : ''}
+        <div class="detail-block">
+          <h4>Основное</h4>
+          <div class="kv">
+            <div>Бренд</div><div>${item.brand || '—'}</div>
+            <div>Код</div><div>${item.code || '—'}</div>
+            <div>Mikado-код</div><div>${item.mikadoCode || '—'}</div>
+            <div>Название</div><div>${item.name || '—'}</div>
+          </div>
+        </div>
+        <div class="detail-block">
+          <h4>Цена и наличие</h4>
+          <div class="kv">
+            <div>Опт</div><div>${money(item.priceOpt || item.priceRetail)}</div>
+            <div>Статус</div><div><span class="chip ${av.cls}">${av.text}</span></div>
+            <div>Срок / склад</div><div>${item.stockText || item.warehouse || '—'}</div>
+          </div>
+          <div class="toolbar">
+            <button id="panelAddCartBtn" class="link-button secondary" type="button">Добавить в корзину</button>
+            ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
+          </div>
+        </div>
+        <div class="detail-block">
+          <h4>Комментарий</h4>
+          <div class="sub">${item.comment || 'Без комментария'}</div>
+        </div>
+      `;
+      
+      document.getElementById('detailPanelContent').innerHTML = html;
+      detailPanel.classList.add('open');
+      detailPanel.dataset.selectedId = item.id;
+
+      document.getElementById('panelAddCartBtn').addEventListener('click', () => {
+        const selectedItem = currentItems.find(x => x.id === item.id);
+        if (selectedItem) {
+          addToCart(selectedItem);
+          closeDetailPanel();
+        }
+      });
+    }
+
+    function closeDetailPanel() {
+      detailPanel.classList.remove('open');
+    }
+
+    document.getElementById('detailPanelClose').addEventListener('click', closeDetailPanel);
+
+    // Функции для управления модальным окном корзины
+    function openCartModal() {
+      cartModal.classList.add('open');
+      updateCartModal();
+    }
+
+    function closeCartModal() {
+      cartModal.classList.remove('open');
+    }
+
+    function updateCartModal() {
+      const content = document.getElementById('cartModalContent');
+      if (!cartItems.length) {
+        content.innerHTML = '<p style="color: var(--muted);">Корзина пуста.</p>';
+        return;
+      }
+
+      const html = cartItems.map((item) => {
+        return `
+          <div class="cart-item" data-id="${item.id}">
+            <div class="row">
+              <div>
+                <div class="title">${item.brand || '—'} ${item.code || '—'}</div>
+                <div class="sub">${item.name || '—'}</div>
+              </div>
+              <div>
+                <button class="link-button secondary remove-modal-cart-btn" data-id="${item.id}">Удалить</button>
+              </div>
+            </div>
+            <div class="row" style="gap: 12px; margin-top: 10px;">
+              <div class="kv" style="grid-template-columns: 110px 1fr; width: 100%;">
+                <div>Опт</div><div>${money(item.optPrice)}</div>
+                <div>Кол-во</div><div><input type="number" min="1" class="modal-cart-qty" data-id="${item.id}" value="${item.quantity}" /></div>
+                <div>Наценка %</div><div><input type="number" min="0" step="1" class="modal-cart-markup" data-id="${item.id}" value="${item.markup}" /></div>
+                <div>Цена в корзине</div><div><input type="number" min="0" step="0.01" class="modal-cart-price" data-id="${item.id}" value="${item.priceInCart.toFixed(2)}" /></div>
+                <div>Итого</div><div><strong>${money(roundNumber(item.priceInCart) * item.quantity)}</strong></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const total = getCartTotal();
+      content.innerHTML = `
+        <div class="cart-list">${html}</div>
+        <div class="footer-note" style="margin-top: 14px; font-size: 15px;">Общая сумма: <strong>${money(total)}</strong></div>
+        <button id="clearModalCartBtn" class="link-button secondary" style="margin-top: 14px; width: 100%;">Очистить корзину</button>
+      `;
+
+      content.querySelectorAll('.modal-cart-qty').forEach((input) => {
+        input.addEventListener('change', (event) => {
+          updateCartItem(event.target.dataset.id, 'quantity', event.target.value);
+          updateCartModal();
+        });
+      });
+
+      content.querySelectorAll('.modal-cart-markup').forEach((input) => {
+        input.addEventListener('change', (event) => {
+          updateCartItem(event.target.dataset.id, 'markup', event.target.value);
+          updateCartModal();
+        });
+      });
+
+      content.querySelectorAll('.modal-cart-price').forEach((input) => {
+        input.addEventListener('change', (event) => {
+          updateCartItem(event.target.dataset.id, 'priceInCart', event.target.value);
+          updateCartModal();
+        });
+      });
+
+      content.querySelectorAll('.remove-modal-cart-btn').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          removeFromCart(event.target.dataset.id);
+          updateCartModal();
+        });
+      });
+
+      const clearBtn = document.getElementById('clearModalCartBtn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+          cartItems = [];
+          saveCart();
+          updateCartModal();
+        });
+      }
+    }
+
+    document.getElementById('cartFab').addEventListener('click', openCartModal);
+    document.getElementById('cartModalClose').addEventListener('click', closeCartModal);
+    document.getElementById('cartModal').addEventListener('click', (event) => {
+      if (event.target === cartModal) closeCartModal();
+    });
+
+    // Обновляем renderDetail для открытия боковой панели на мобильном
+    const originalRenderDetail = renderDetail;
+    renderDetail = function(item) {
+      originalRenderDetail(item);
+      if (window.innerWidth <= 768) {
+        openDetailPanel(item);
+      }
+    };
+
+    // Обновляем renderCart для показа плавающей кнопки на мобильном
+    const originalRenderCart = renderCart;
+    renderCart = function() {
+      originalRenderCart();
+      if (window.innerWidth <= 768) {
+        if (cartItems.length > 0) {
+          cartFab.classList.add('show');
+        } else {
+          cartFab.classList.remove('show');
+        }
+      }
+    };
+
+    // Показываем/скрываем FAB в зависимости от размера экрана
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 768) {
+        cartFab.classList.remove('show');
+        closeDetailPanel();
+        closeCartModal();
+      } else {
+        if (cartItems.length > 0) {
+          cartFab.classList.add('show');
+        }
+      }
+    });
+
+    // Инициализация при загрузке
+    if (window.innerWidth <= 768 && cartItems.length > 0) {
+      cartFab.classList.add('show');
+    }
   </script>
 </body>
 </html>
