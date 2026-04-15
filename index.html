@@ -327,6 +327,19 @@
       position: relative;
     }
 
+    .earnings-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+
+    .earnings-modal-header .section-title {
+      margin: 0;
+      font-size: 22px;
+    }
+
     .earnings-modal-close {
       position: absolute;
       top: 18px;
@@ -1024,8 +1037,10 @@
 <body>
   <div class="earnings-modal" id="earningsModal">
     <div class="earnings-modal-content">
-      <button class="earnings-modal-close" id="earningsModalClose" type="button">✕</button>
-      <h2 class="section-title">Отчет по заработку</h2>
+      <div class="earnings-modal-header">
+        <h2 class="section-title">Отчет по заработку</h2>
+        <button class="earnings-modal-close" id="earningsModalClose" type="button">✕</button>
+      </div>
       <div class="earnings-summary">
         <div>Общая сумма</div>
         <strong id="earningsTotal">0 ₽</strong>
@@ -1258,7 +1273,26 @@
 
     els.vinSearchBtn?.addEventListener('click', openVinSearch);
 
+    const EARNINGS_KEY = 'vin_garage_earnings';
     let earningsEntries = [];
+
+    function loadLocalEarnings() {
+      try {
+        const raw = localStorage.getItem(EARNINGS_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch (error) {
+        return [];
+      }
+    }
+
+    function saveLocalEarnings(entries) {
+      try {
+        localStorage.setItem(EARNINGS_KEY, JSON.stringify(entries));
+      } catch (error) {
+        console.error('saveLocalEarnings error:', error);
+      }
+    }
 
     async function fetchEarnings() {
       try {
@@ -1270,7 +1304,7 @@
         earningsEntries = Array.isArray(data.entries) ? data.entries : [];
       } catch (error) {
         console.error('fetchEarnings error:', error);
-        earningsEntries = [];
+        earningsEntries = loadLocalEarnings();
       }
     }
 
@@ -1325,6 +1359,10 @@
             await loadEarningsData();
           } catch (error) {
             console.error('deleteEarningsEntry error:', error);
+            earningsEntries = earningsEntries.filter((entry) => entry.id !== id);
+            saveLocalEarnings(earningsEntries);
+            updateEarningsDisplay();
+            renderEarningsEntries();
           }
         });
       });
@@ -1369,6 +1407,17 @@
         await loadEarningsData();
       } catch (error) {
         console.error('addEarningsEntry error:', error);
+        earningsEntries.push({
+          id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+          amount,
+          comment: commentInput.value.trim(),
+          timestamp: Date.now(),
+        });
+        saveLocalEarnings(earningsEntries);
+        amountInput.value = '';
+        commentInput.value = '';
+        updateEarningsDisplay();
+        renderEarningsEntries();
       }
     }
 
