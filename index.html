@@ -1258,21 +1258,20 @@
 
     els.vinSearchBtn?.addEventListener('click', openVinSearch);
 
-    const EARNINGS_KEY = 'vin_garage_earnings';
     let earningsEntries = [];
 
-    function loadEarnings() {
+    async function fetchEarnings() {
       try {
-        const raw = localStorage.getItem(EARNINGS_KEY);
-        earningsEntries = raw ? JSON.parse(raw) : [];
-        if (!Array.isArray(earningsEntries)) earningsEntries = [];
+        const response = await fetch('/api/earnings');
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Ошибка загрузки данных');
+        }
+        earningsEntries = Array.isArray(data.entries) ? data.entries : [];
       } catch (error) {
+        console.error('fetchEarnings error:', error);
         earningsEntries = [];
       }
-    }
-
-    function saveEarnings() {
-      localStorage.setItem(EARNINGS_KEY, JSON.stringify(earningsEntries));
     }
 
     function escapeText(text) {
@@ -1315,12 +1314,18 @@
       `).join('');
 
       container.querySelectorAll('.earnings-entry-delete').forEach((button) => {
-        button.addEventListener('click', () => {
+        button.addEventListener('click', async () => {
           const id = button.dataset.id;
-          earningsEntries = earningsEntries.filter((entry) => entry.id !== id);
-          saveEarnings();
-          renderEarningsEntries();
-          updateEarningsDisplay();
+          try {
+            const response = await fetch(`/api/earnings/${encodeURIComponent(id)}`, { method: 'DELETE' });
+            const data = await response.json();
+            if (!response.ok || !data.ok) {
+              throw new Error(data.error || 'Ошибка удаления');
+            }
+            await loadEarningsData();
+          } catch (error) {
+            console.error('deleteEarningsEntry error:', error);
+          }
         });
       });
     }
@@ -1329,7 +1334,6 @@
       const modal = document.getElementById('earningsModal');
       if (!modal) return;
       modal.classList.add('open');
-      updateEarningsDisplay();
       renderEarningsEntries();
     }
 
@@ -1339,7 +1343,7 @@
       modal.classList.remove('open');
     }
 
-    function addEarningsEntry() {
+    async function addEarningsEntry() {
       const amountInput = document.getElementById('earningsAmountInput');
       const commentInput = document.getElementById('earningsCommentInput');
       if (!amountInput || !commentInput) return;
@@ -1350,25 +1354,31 @@
         return;
       }
 
-      earningsEntries.push({
-        id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-        amount,
-        comment: commentInput.value.trim(),
-        timestamp: Date.now(),
-      });
-
-      saveEarnings();
-      amountInput.value = '';
-      commentInput.value = '';
-      renderEarningsEntries();
-      updateEarningsDisplay();
+      try {
+        const response = await fetch('/api/earnings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount, comment: commentInput.value.trim() }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Ошибка сохранения');
+        }
+        amountInput.value = '';
+        commentInput.value = '';
+        await loadEarningsData();
+      } catch (error) {
+        console.error('addEarningsEntry error:', error);
+      }
     }
 
-    function initEarnings() {
-      loadEarnings();
+    async function loadEarningsData() {
+      await fetchEarnings();
       updateEarningsDisplay();
       renderEarningsEntries();
+    }
 
+    async function initEarnings() {
       const badge = document.getElementById('earningsBadge');
       const modal = document.getElementById('earningsModal');
       const closeButton = document.getElementById('earningsModalClose');
@@ -1380,6 +1390,8 @@
       modal?.addEventListener('click', (event) => {
         if (event.target === modal) closeEarningsModal();
       });
+
+      await loadEarningsData();
     }
 
     initEarnings();

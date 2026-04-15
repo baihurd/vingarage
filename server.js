@@ -1,10 +1,12 @@
 import express from "express";
 import cors from "cors";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const EARNINGS_FILE = path.join(__dirname, "earnings.json");
 
 app.use(cors());
 app.use(express.json());
@@ -169,6 +171,78 @@ app.post("/api/mikado/search", async (req, res) => {
       ok: false,
       error: error.message || "Ошибка прокси"
     });
+  }
+});
+
+async function loadEarningsFile() {
+  try {
+    if (!fs.existsSync(EARNINGS_FILE)) {
+      await fs.promises.writeFile(EARNINGS_FILE, JSON.stringify([]), "utf-8");
+    }
+    const raw = await fs.promises.readFile(EARNINGS_FILE, "utf-8");
+    const parsed = JSON.parse(raw || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (error) {
+    console.error("earnings file error:", error);
+    return [];
+  }
+}
+
+async function saveEarningsFile(entries) {
+  try {
+    await fs.promises.writeFile(EARNINGS_FILE, JSON.stringify(entries, null, 2), "utf-8");
+  } catch (error) {
+    console.error("earnings save error:", error);
+  }
+}
+
+app.get("/api/earnings", async (req, res) => {
+  try {
+    const entries = await loadEarningsFile();
+    return res.json({ ok: true, entries });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить данные" });
+  }
+});
+
+app.post("/api/earnings", async (req, res) => {
+  try {
+    const amount = Number(req.body.amount);
+    const comment = String(req.body.comment || "").trim();
+    if (Number.isNaN(amount) || amount <= 0) {
+      return res.status(400).json({ ok: false, error: "Неверная сумма" });
+    }
+
+    const entries = await loadEarningsFile();
+    const entry = {
+      id: `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      amount,
+      comment,
+      timestamp: Date.now(),
+    };
+    entries.push(entry);
+    await saveEarningsFile(entries);
+    return res.json({ ok: true, entry });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось сохранить запись" });
+  }
+});
+
+app.delete("/api/earnings/:id", async (req, res) => {
+  try {
+    const id = String(req.params.id || "").trim();
+    if (!id) {
+      return res.status(400).json({ ok: false, error: "Не передан id" });
+    }
+    const entries = await loadEarningsFile();
+    const filtered = entries.filter((entry) => entry.id !== id);
+    await saveEarningsFile(filtered);
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить запись" });
   }
 });
 
