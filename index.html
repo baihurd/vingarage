@@ -179,18 +179,20 @@
 
     button {
       cursor: pointer;
-      background: linear-gradient(90deg, var(--accent), #ff9a34);
+      background: linear-gradient(90deg, #ff9500, #ffb55b);
       color: #111;
       font-weight: 800;
       border: none;
       min-width: 180px;
+      box-shadow: 0 10px 24px rgba(255, 149, 0, 0.18);
     }
 
     button:hover { transform: translateY(-1px); }
     button.secondary {
-      background: #1b2230;
-      color: var(--text);
-      border: 1px solid var(--line);
+      background: #1f2632;
+      color: #f6f9ff;
+      border: 1px solid rgba(255,138,29,0.9);
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
     }
 
     .link-button {
@@ -201,12 +203,13 @@
       padding: 12px 16px;
       border-radius: 14px;
       border: 1px solid rgba(255,138,29,0.95);
-      background: #1b2432;
+      background: #1f2632;
       color: #f6f9ff;
       text-decoration: none;
       font-weight: 700;
       margin-top: 14px;
       transition: .2s ease;
+      box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
     }
 
     .link-button:hover {
@@ -283,9 +286,9 @@
       z-index: 1200;
       padding: 12px 16px;
       border-radius: 999px;
-      background: rgba(255, 138, 29, 0.16);
-      border: 1px solid rgba(255, 138, 29, 0.45);
-      color: #fff;
+      background: linear-gradient(90deg, #ffb55b, #ff8f00);
+      border: 1px solid #ff9b1f;
+      color: #111;
       box-shadow: var(--shadow);
       display: inline-flex;
       align-items: center;
@@ -296,7 +299,7 @@
 
     .earnings-badge:hover {
       transform: translateY(-2px);
-      background: rgba(255, 138, 29, 0.25);
+      background: linear-gradient(90deg, #ffd57d, #ff9f1a);
     }
 
     .earnings-badge span {
