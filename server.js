@@ -6,8 +6,11 @@ import { fileURLToPath } from "url";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const EARNINGS_FILE_PATH = path.join(__dirname, 'earnings.json');
-const CLIENTS_FILE_PATH = path.join(__dirname, 'clients.json');
+
+// Use persistent disk on Render, local storage for development
+const DATA_DIR = process.env.NODE_ENV === 'production' ? '/var/data' : __dirname;
+const EARNINGS_FILE_PATH = path.join(DATA_DIR, 'earnings.json');
+const CLIENTS_FILE_PATH = path.join(DATA_DIR, 'clients.json');
 
 let earningsEntriesMemory = null;
 let clientsEntriesMemory = null;
