@@ -231,17 +231,6 @@ function loadClientsFile() {
     return [];
   }
 }
-}
-
-app.get("/api/earnings", async (req, res) => {
-  try {
-    const entries = await loadEarningsFile();
-    return res.json({ ok: true, entries });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить данные" });
-  }
-});
 
 app.get("/api/earnings", (req, res) => {
   try {
@@ -292,16 +281,6 @@ app.delete("/api/earnings/:id", (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить запись" });
-  }
-});
-
-app.get("/api/clients", async (req, res) => {
-  try {
-    const entries = await loadClientsFile();
-    return res.json({ ok: true, entries });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить клиентов" });
   }
 });
 
