@@ -22,7 +22,18 @@
     }
 
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; font-family: Inter, Arial, sans-serif; background: linear-gradient(180deg, #0b0d11 0%, #11141a 100%); color: var(--text); }
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: Inter, Arial, sans-serif;
+      color: var(--text);
+      background-color: #0b0d11;
+      background-image: url('background.jpg'), linear-gradient(180deg, rgba(11,13,17,0.92) 0%, rgba(17,20,26,0.98) 100%);
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
     a { color: inherit; }
 
     .wrap {
