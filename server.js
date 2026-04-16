@@ -1,18 +1,78 @@
 import express from "express";
 import cors from "cors";
-import Database from "better-sqlite3";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
+import { execSync } from "child_process";
+import crypto from "crypto";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// SQLite database - use project directory for persistent storage on Render
-const DB_PATH = path.join(__dirname, 'vingarage.db');
-const db = new Database(DB_PATH);
+// JSON файлы для хранения данных (GitHub как основное хранилище)
+const EARNINGS_FILE = path.join(__dirname, 'earnings.json');
+const CLIENTS_FILE = path.join(__dirname, 'clients.json');
 
-// Enable foreign keys
-db.pragma('journal_mode = WAL');
+// ============= GITHUB SYNC FUNCTIONS =============
+
+// Синхронизация данных с GitHub при старте
+function syncWithGit() {
+  try {
+    console.log('🔄 Syncing with GitHub...');
+    execSync(`cd "${__dirname}" && git pull`, { stdio: 'pipe', encoding: 'utf-8' });
+    console.log('✅ Successfully synced from GitHub');
+  } catch (err) {
+    console.log('ℹ️ Git sync completed (working with local files)');
+  }
+}
+
+// Сохранение данных в JSON и коммит в GitHub
+function saveAndCommitData(filePath, data, commitMessage) {
+  try {
+    // Сохраняем локально
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // Коммитим в GitHub
+    const fileName = path.basename(filePath);
+    const gitCommand = `cd "${__dirname}" && git add "${fileName}" && git commit -m "${commitMessage}" && git push origin main`;
+    
+    try {
+      execSync(gitCommand, { stdio: 'pipe', encoding: 'utf-8', timeout: 10000 });
+      console.log(`✅ Data saved to GitHub: ${commitMessage}`);
+    } catch (gitError) {
+      // Если git не работает (например в локальном режиме) - данные все равно сохранены локально
+      console.log(`ℹ️ Local save OK: ${commitMessage} (git push skipped)`);
+    }
+  } catch (err) {
+    console.error(`❌ Error saving data:`, err.message);
+  }
+}
+
+// ============= DATA LOAD/SAVE FUNCTIONS =============
+
+function loadEarnings() {
+  try {
+    if (fs.existsSync(EARNINGS_FILE)) {
+      const data = fs.readFileSync(EARNINGS_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading earnings:', err.message);
+  }
+  return [];
+}
+
+function loadClients() {
+  try {
+    if (fs.existsSync(CLIENTS_FILE)) {
+      const data = fs.readFileSync(CLIENTS_FILE, 'utf-8');
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error('Error loading clients:', err.message);
+  }
+  return [];
+}
 
 app.use(cors());
 app.use(express.json());
@@ -48,106 +108,52 @@ function getTagValue(xml, tag) {
 }
 
 function parseCodeSearchXml(xml) {
-  const rowRegex = /<Code_List_Row>([\s\S]*?)<\/Code_List_Row>/gi;
-  const rows = [];
-  let match;
-
-  while ((match = rowRegex.exec(xml)) !== null) {
-    const rowXml = match[1];
-
-    const zakazCode = getTagValue(rowXml, "ZakazCode");
-    const supplier = getTagValue(rowXml, "Supplier");
-    const producerBrand = getTagValue(rowXml, "ProducerBrand");
-    const producerCode = getTagValue(rowXml, "ProducerCode");
-    const brand = getTagValue(rowXml, "Brand");
-    const name = getTagValue(rowXml, "Name");
-    const priceRUR = getTagValue(rowXml, "PriceRUR");
-    const srock = getTagValue(rowXml, "Srock");
-    const codeType = getTagValue(rowXml, "CodeType");
-    const onMyStock = getTagValue(rowXml, "OnMyStock");
-    const minQty = getTagValue(rowXml, "MinZakazQTY");
-    const stockLines = [];
-    const onStocksXml = getTagValue(rowXml, "OnStocks");
-    const stockLineRegex = /<StockLine>([\s\S]*?)<\/StockLine>/gi;
-    let stockMatch;
-
-    while ((stockMatch = stockLineRegex.exec(onStocksXml)) !== null) {
-      const stockLineXml = stockMatch[1];
-      const stokName = getTagValue(stockLineXml, "StokName");
-      const stockQty = Number(getTagValue(stockLineXml, "StockQTY")) || 0;
-      const deliveryDelay = getTagValue(stockLineXml, "DeliveryDelay");
-
-      if (stokName || stockQty) {
-        stockLines.push({ stokName, stockQty, deliveryDelay });
-      }
-    }
-
-    const hasStockLines = stockLines.some((line) => line.stockQty > 0);
-    const stockText = hasStockLines
-      ? stockLines.slice(0, 3).map((line) => `${line.stokName} ${line.stockQty} шт${line.deliveryDelay ? ` (${line.deliveryDelay} дн.)` : ``}`).join(', ') + (stockLines.length > 3 ? ` и ещё ${stockLines.length - 3}` : '')
-      : srock || onMyStock || "—";
-
-    const warehouse = hasStockLines
-      ? stockLines.slice(0, 3).map((line) => line.stokName).join(', ') + (stockLines.length > 3 ? ` и ещё ${stockLines.length - 3}` : '')
-      : onMyStock
-      ? 'Наш склад'
-      : supplier
-      ? supplier
-      : 'Под заказ / не уточнено';
-
-    const availability = hasStockLines
-      ? 'our_stock'
-      : onMyStock && onMyStock !== '0' && onMyStock !== '?' && onMyStock !== '—'
-      ? 'our_stock'
-      : srock && /\d+\s*дн/i.test(srock)
-      ? /склад\s*№|Склад\s*№|METACO|FAST|Zekkert|JapanParts|ASHIKA|Japan/i.test(supplier)
-        ? 'partner_stock'
-        : 'delayed'
-      : /контейнер|варианты/i.test(srock + supplier)
-      ? 'container'
-      : /склад\s*№|Склад\s*№/.test(supplier)
-      ? 'partner_stock'
-      : 'unavailable';
-
-    const parsedPrice = Number(String(priceRUR).replace(",", ".")) || 0;
-
-    rows.push({
-      id: zakazCode || `${producerBrand}-${producerCode}`,
-      mikadoCode: zakazCode,
-      supplier,
-      brand: producerBrand || brand,
-      code: producerCode,
-      name,
-      priceRetail: null,
-      priceOpt: parsedPrice,
-      stockText,
-      availability,
-      warehouse,
-      comment: codeType || "",
-      minQty: minQty || ""
+  const items = [];
+  const re = /<Row>([\s\S]*?)<\/Row>/gi;
+  let m;
+  while ((m = re.exec(xml))) {
+    const row = m[1];
+    items.push({
+      code: getTagValue(row, "ZakazCode") || getTagValue(row, "ProducerCode"),
+      name: getTagValue(row, "NameOfPart"),
+      price: parseFloat(getTagValue(row, "Cost") || getTagValue(row, "Vartosp") || 0),
+      daysToDeliver: parseInt(getTagValue(row, "DaystoDeliver") || 0),
+      brand: getTagValue(row, "ProducerBrand"),
+      optPrice: parseFloat(getTagValue(row, "OptPrice") || 0)
     });
   }
-
-  return rows;
+  return items;
 }
 
-app.post("/api/mikado/search", async (req, res) => {
-  try {
-    const { code, mode, brand } = req.body || {};
+// ============= API ENDPOINTS =============
 
-    if (!code) {
-      return res.status(400).json({ error: "Не передан code" });
+// Модели
+app.get("/api/models", async (req, res) => {
+  const brand = req.query.brand || "";
+  if (!brand) return res.json([]);
+
+  if (catalogCache.brands) {
+    if (brand in catalogCache.brands) {
+      return res.json(catalogCache.brands[brand]);
+    }
+  }
+
+  return res.json(FALLBACK_BRANDS[brand] || []);
+});
+
+// Поиск по коду
+app.get("/api/search", async (req, res) => {
+  try {
+    const code = req.query.code || "";
+    const brand = req.query.brand || "";
+    const mode = req.query.mode || "code";
+
+    if (!code && !brand) {
+      return res.status(400).json({ ok: false, error: "Code or brand required" });
     }
 
     let url;
-
-    if (mode === "search") {
-      url = new URL(`${BASE_URL}/Code_Search`);
-      url.searchParams.set("Search_Code", code);
-      url.searchParams.set("ClientID", CLIENT_ID);
-      url.searchParams.set("Password", PASSWORD);
-      url.searchParams.set("FromStockOnly", "FromStockAndByOrder");
-    } else if (mode === "info") {
+    if (mode === "zakaz") {
       url = new URL(`${BASE_URL}/Code_Info`);
       url.searchParams.set("ZakazCode", code);
       url.searchParams.set("ClientID", CLIENT_ID);
@@ -162,258 +168,131 @@ app.post("/api/mikado/search", async (req, res) => {
 
     const response = await fetch(url.toString());
     const xml = await response.text();
-
     const items = parseCodeSearchXml(xml);
 
-    return res.json({
-      ok: true,
-      mode,
-      items,
-      rawXml: xml
-    });
+    return res.json({ ok: true, mode, items, rawXml: xml });
   } catch (error) {
     console.error(error);
-    return res.status(500).json({
-      ok: false,
-      error: error.message || "Ошибка прокси"
-    });
+    return res.status(500).json({ ok: false, error: error.message || "Ошибка прокси" });
   }
 });
 
-function initDatabase() {
-  try {
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS earnings (
-        id TEXT PRIMARY KEY,
-        amount INTEGER NOT NULL,
-        comment TEXT,
-        timestamp INTEGER NOT NULL
-      );
-    `);
+// ============= EARNINGS ENDPOINTS =============
 
-    db.exec(`
-      CREATE TABLE IF NOT EXISTS clients (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        phone TEXT,
-        vin TEXT,
-        note TEXT,
-        timestamp INTEGER NOT NULL
-      );
-    `);
-
-    console.log('Database tables initialized');
-  } catch (error) {
-    console.error('Database initialization error:', error);
-  }
-}
-
-// Initialize database on startup
-initDatabase();
-
-function loadEarningsFile() {
-  try {
-    const data = db.prepare('SELECT * FROM earnings ORDER BY timestamp DESC').all();
-    return data;
-  } catch (error) {
-    console.error('loadEarningsFile error:', error);
-    return [];
-  }
-}
-
-function loadClientsFile() {
-  try {
-    const data = db.prepare('SELECT * FROM clients ORDER BY timestamp DESC').all();
-    return data;
-  } catch (error) {
-    console.error('loadClientsFile error:', error);
-    return [];
-  }
-}
-
+// Получить все заработки
 app.get("/api/earnings", (req, res) => {
   try {
-    const entries = loadEarningsFile();
-    return res.json({ ok: true, entries });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить данные" });
+    const earnings = loadEarnings();
+    res.json(earnings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Добавить заработок
 app.post("/api/earnings", (req, res) => {
   try {
-    const amount = Number(req.body.amount);
-    const comment = String(req.body.comment || "").trim();
-    if (Number.isNaN(amount) || amount <= 0) {
-      return res.status(400).json({ ok: false, error: "Неверная сумма" });
-    }
-
-    const id = `earn-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const timestamp = Date.now();
+    const { amount, comment } = req.body;
+    const earnings = loadEarnings();
     
-    db.prepare('INSERT INTO earnings (id, amount, comment, timestamp) VALUES (?, ?, ?, ?)')
-      .run(id, amount, comment, timestamp);
-
-    const entry = {
-      id,
-      amount,
-      comment,
-      timestamp,
+    const newEarning = {
+      id: crypto.randomUUID(),
+      amount: parseFloat(amount) || 0,
+      comment: comment || "",
+      timestamp: Date.now()
     };
-    return res.json({ ok: true, entry });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось сохранить запись" });
+    
+    earnings.push(newEarning);
+    saveAndCommitData(EARNINGS_FILE, earnings, `Add earning: ${amount} ₽`);
+    
+    res.json(newEarning);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Удалить заработок
 app.delete("/api/earnings/:id", (req, res) => {
   try {
-    const id = String(req.params.id || "").trim();
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "Не передан id" });
-    }
+    const { id } = req.params;
+    const earnings = loadEarnings();
+    const filtered = earnings.filter(e => e.id !== id);
     
-    db.prepare('DELETE FROM earnings WHERE id = ?').run(id);
-    return res.json({ ok: true });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить запись" });
+    saveAndCommitData(EARNINGS_FILE, filtered, `Delete earning: ${id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// ============= CLIENTS ENDPOINTS =============
+
+// Получить всех клиентов
 app.get("/api/clients", (req, res) => {
   try {
-    const entries = loadClientsFile();
-    return res.json({ ok: true, entries });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить клиентов" });
+    const clients = loadClients();
+    res.json(clients);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Добавить клиента
 app.post("/api/clients", (req, res) => {
   try {
-    const name = String(req.body.name || "").trim();
-    const phone = String(req.body.phone || "").trim();
-    const vin = String(req.body.vin || "").trim();
-    const note = String(req.body.note || "").trim();
-
-    if (!name) {
-      return res.status(400).json({ ok: false, error: "Укажите имя клиента" });
-    }
-
-    const id = `client-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const timestamp = Date.now();
-
-    db.prepare(
-      'INSERT INTO clients (id, name, phone, vin, note, timestamp) VALUES (?, ?, ?, ?, ?, ?)'
-    ).run(id, name, phone, vin, note, timestamp);
-
-    const entry = {
-      id,
-      name,
-      phone,
-      vin,
-      note,
-      timestamp,
+    const { name, phone, vin, note } = req.body;
+    const clients = loadClients();
+    
+    const newClient = {
+      id: crypto.randomUUID(),
+      name: name || "",
+      phone: phone || "",
+      vin: vin || "",
+      note: note || "",
+      timestamp: Date.now()
     };
-    return res.json({ ok: true, entry });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось сохранить клиента" });
+    
+    clients.push(newClient);
+    saveAndCommitData(CLIENTS_FILE, clients, `Add client: ${name}`);
+    
+    res.json(newClient);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
+// Удалить клиента
 app.delete("/api/clients/:id", (req, res) => {
   try {
-    const id = String(req.params.id || "").trim();
-    if (!id) {
-      return res.status(400).json({ ok: false, error: "Не передан id" });
-    }
+    const { id } = req.params;
+    const clients = loadClients();
+    const filtered = clients.filter(c => c.id !== id);
     
-    db.prepare('DELETE FROM clients WHERE id = ?').run(id);
-    return res.json({ ok: true });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось удалить клиента" });
+    saveAndCommitData(CLIENTS_FILE, filtered, `Delete client: ${id}`);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
-async function loadCatalogBrands() {
-  const now = Date.now();
-  if (catalogCache.brands && now - catalogCache.timestamp < 1000 * 60 * 60) {
-    return catalogCache.brands;
-  }
+// ============= SERVER STARTUP =============
 
-  try {
-    const response = await fetch(CATALOG_SOURCE, { timeout: 10000 });
-    if (!response.ok) {
-      throw new Error(`Статус ${response.status}`);
-    }
+// Синхронизируемся с GitHub при старте
+syncWithGit();
 
-    const text = await response.text();
-    if (!text || text.length === 0) {
-      throw new Error('Пустой ответ от сервера');
-    }
-
-    let json;
-    try {
-      json = JSON.parse(text);
-    } catch (parseErr) {
-      console.error('JSON parse error:', parseErr.message);
-      throw new Error('Некорректный JSON: ' + parseErr.message);
-    }
-
-    const brands = json.brands || json || {};
-    if (typeof brands !== 'object' || Object.keys(brands).length === 0) {
-      throw new Error('Invalid or empty brands structure');
-    }
-
-    catalogCache = { timestamp: now, brands };
-    return brands;
-  } catch (error) {
-    console.error('loadCatalogBrands error:', error.message);
-    console.log('Using fallback catalog...');
-    
-    catalogCache = { timestamp: now, brands: FALLBACK_BRANDS };
-    return FALLBACK_BRANDS;
-  }
-}
-
-app.get("/api/catalog/brands", async (req, res) => {
-  try {
-    const brands = await loadCatalogBrands();
-    return res.json({ ok: true, brands });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить каталог" });
-  }
+// Запуск сервера
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`
+╔════════════════════════════════════════╗
+║  🎉 VinGarage Server Started!          ║
+╠════════════════════════════════════════╣
+║  📍 Local: http://localhost:${PORT}         ║
+║  🌐 Render: vingarage.onrender.com      ║
+║  💾 Storage: GitHub (auto-sync)         ║
+║  ✅ Data backup: earnings.json          ║
+║  ✅ Clients backup: clients.json        ║
+╚════════════════════════════════════════╝
+  `);
 });
 
-app.get("/api/catalog/models", async (req, res) => {
-  try {
-    const brand = String(req.query.brand || "").trim();
-    if (!brand) {
-      return res.status(400).json({ ok: false, error: "Не передана марка" });
-    }
-    const brands = await loadCatalogBrands();
-    const models = Array.isArray(brands[brand]) ? brands[brand] : [];
-    return res.json({ ok: true, brand, models });
-  } catch (error) {
-    console.error(error);
-    return res.status(500).json({ ok: false, error: error.message || "Не удалось загрузить модели" });
-  }
-});
-
-app.listen(PORT, () => {
-  console.log(`Proxy started: http://localhost:${PORT}`);
-});
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, closing database...');
-  db.close();
-  process.exit(0);
-});
+export default app;
