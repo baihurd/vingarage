@@ -2247,6 +2247,20 @@ async function fetchClients() {
       }
     }
 
+    function bindPriceAnalysisButton() {
+      const priceBtn = document.getElementById('priceAnalysisBtn');
+      if (priceBtn) {
+        priceBtn.addEventListener('click', () => {
+          const selectedItem = currentItems.find(item => item.id === els.detail.dataset.selectedId);
+          if (selectedItem) {
+            const partName = selectedItem.name || `${selectedItem.brand} ${selectedItem.code}`;
+            const searchUrl = `https://yandex.ru/search/?text=${encodeURIComponent(partName + ' цена')}`;
+            window.open(searchUrl, '_blank');
+          }
+        });
+      }
+    }
+
     function filterItems(items) {
       let filtered = items;
       if (selectedStatuses.length > 0 && selectedStatuses.length < Object.keys(STATUS_LABELS).length) {
@@ -2601,6 +2615,7 @@ async function fetchClients() {
           </div>
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
+            <button class="link-button" type="button" id="priceAnalysisBtn">Анализ цены</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
           </div>
         </div>
@@ -2611,6 +2626,7 @@ async function fetchClients() {
       `;
       els.detail.dataset.selectedId = item.id;
       bindDetailAddButton();
+      bindPriceAnalysisButton();
     }
 
     async function search() {
