@@ -76,6 +76,7 @@ function loadClients() {
 
 app.use(cors());
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;
@@ -102,24 +103,48 @@ const FALLBACK_BRANDS = {
 };
 
 function getTagValue(xml, tag) {
-  const re = new RegExp(`<${tag}>([\\s\\S]*?)<\\/${tag}>`, "i");
+  const re = new RegExp(`<${tag}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${tag}>`, "i");
   const m = xml.match(re);
   return m ? m[1].trim() : "";
 }
 
 function parseCodeSearchXml(xml) {
   const items = [];
-  const re = /<Row>([\s\S]*?)<\/Row>/gi;
+  const re = /<(?:Code_List_Row|Row)>([\s\S]*?)<\/(?:Code_List_Row|Row)>/gi;
   let m;
+  let idx = 0;
   while ((m = re.exec(xml))) {
     const row = m[1];
+    const producerCode = getTagValue(row, "ProducerCode") || getTagValue(row, "ZakazCode");
+    const priceRUR = parseFloat(getTagValue(row, "PriceRUR") || getTagValue(row, "Cost") || getTagValue(row, "Vartosp") || 0);
     items.push({
-      code: getTagValue(row, "ZakazCode") || getTagValue(row, "ProducerCode"),
-      name: getTagValue(row, "NameOfPart"),
-      price: parseFloat(getTagValue(row, "Cost") || getTagValue(row, "Vartosp") || 0),
-      daysToDeliver: parseInt(getTagValue(row, "DaystoDeliver") || 0),
-      brand: getTagValue(row, "ProducerBrand"),
-      optPrice: parseFloat(getTagValue(row, "OptPrice") || 0)
+      id: `${producerCode || 'item'}_${idx++}`,
+      code: producerCode,
+      name: getTagValue(row, "Name") || getTagValue(row, "NameOfPart"),
+      priceOpt: priceRUR,
+      priceRetail: priceRUR,
+      stockText: getTagValue(row, "Srock") || getTagValue(row, "OnMyStock") || "",
+      availability: getTagValue(row, "CodeType") || "",
+      supplier: getTagValue(row, "Supplier"),
+      brand: getTagValue(row, "ProducerBrand") || getTagValue(row, "Brand"),
+      country: getTagValue(row, "Country"),
+      raw: {
+        ZakazCode: getTagValue(row, "ZakazCode"),
+        Supplier: getTagValue(row, "Supplier"),
+        ProducerBrand: getTagValue(row, "ProducerBrand"),
+        ProducerCode: getTagValue(row, "ProducerCode"),
+        Brand: getTagValue(row, "Brand"),
+        Country: getTagValue(row, "Country"),
+        Name: getTagValue(row, "Name"),
+        OnStocks: getTagValue(row, "OnStocks"),
+        PriceRUR: getTagValue(row, "PriceRUR"),
+        Srock: getTagValue(row, "Srock"),
+        CodeType: getTagValue(row, "CodeType"),
+        Source: getTagValue(row, "Source"),
+        PrefixLength: getTagValue(row, "PrefixLength"),
+        OnMyStock: getTagValue(row, "OnMyStock"),
+        MinZakazQTY: getTagValue(row, "MinZakazQTY"),
+      }
     });
   }
   return items;
@@ -177,15 +202,46 @@ app.get("/api/search", async (req, res) => {
   }
 });
 
+app.post("/api/mikado/search", async (req, res) => {
+  try {
+    const code = String(req.body.code || "").trim();
+    const mode = String(req.body.mode || "search").trim();
+
+    if (!code) {
+      return res.status(400).json({ ok: false, error: "Code required" });
+    }
+
+    const url = new URL(`${BASE_URL}/Code_Search`);
+    url.searchParams.set("Search_Code", code);
+    url.searchParams.set("ClientID", CLIENT_ID);
+    url.searchParams.set("Password", PASSWORD);
+    url.searchParams.set("FromStockOnly", "FromStockAndByOrder");
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'Accept': 'text/xml',
+      },
+    });
+    const xml = await response.text();
+    const items = parseCodeSearchXml(xml);
+
+    return res.json({ ok: true, mode, items, rawXml: xml });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Ошибка прокси" });
+  }
+});
+
 // ============= EARNINGS ENDPOINTS =============
 
 // Получить все заработки
 app.get("/api/earnings", (req, res) => {
   try {
     const earnings = loadEarnings();
-    res.json(earnings);
+    res.json({ ok: true, entries: earnings });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -205,9 +261,9 @@ app.post("/api/earnings", (req, res) => {
     earnings.push(newEarning);
     saveAndCommitData(EARNINGS_FILE, earnings, `Add earning: ${amount} ₽`);
     
-    res.json(newEarning);
+    res.json({ ok: true, entry: newEarning });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -231,9 +287,9 @@ app.delete("/api/earnings/:id", (req, res) => {
 app.get("/api/clients", (req, res) => {
   try {
     const clients = loadClients();
-    res.json(clients);
+    res.json({ ok: true, entries: clients });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
@@ -255,9 +311,9 @@ app.post("/api/clients", (req, res) => {
     clients.push(newClient);
     saveAndCommitData(CLIENTS_FILE, clients, `Add client: ${name}`);
     
-    res.json(newClient);
+    res.json({ ok: true, entry: newClient });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ ok: false, error: err.message });
   }
 });
 
