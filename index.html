@@ -1544,6 +1544,7 @@
       container: 'Контейнер',
       unavailable: 'Недоступно',
     };
+    const STATUS_ORDER = ['our_stock', 'partner_stock', 'delayed', 'container', 'unavailable'];
     let selectedStatuses = Object.keys(STATUS_LABELS);
     const hasInitStatuses = { value: false };
     let sortMode = 'price';
@@ -2214,6 +2215,20 @@ async function fetchClients() {
       return `https://mikado-parts.ru/office/galleyp.asp?code=${encodeURIComponent(code)}`;
     }
 
+    function formatWarehouseInfo(item) {
+      const info = String(item.warehouse || item.stockText || '').trim();
+      if (!info) return '—';
+      if (getNormalizedAvailability(item) === 'our_stock') {
+        return info
+          .split(/\r?\n/)
+          .map(line => line.trim())
+          .filter(Boolean)
+          .map(line => `<div>${line}</div>`)
+          .join('');
+      }
+      return info;
+    }
+
     function bindDetailAddButton() {
       const detailBtn = document.getElementById('detailAddCartBtn');
       if (detailBtn) {
@@ -2433,14 +2448,19 @@ async function fetchClients() {
         els.supplierWrapper.style.display = 'none';
       }
 
-      const statusValues = [...new Set(items.map(item => getNormalizedAvailability(item)).filter(Boolean))].sort();
-      if (statusValues.length > 0) {
-        els.statusWrapper.style.display = 'block';
-        renderFilterList(statusValues, selectedStatuses, hasInitStatuses, els.statusFilters, els.statusToggle, 'Ничего не выбрано', 'Статусы', STATUS_LABELS);
-        els.statusToggle.disabled = false;
-      } else {
-        els.statusWrapper.style.display = 'none';
-      }
+      const statusSourceItems = items.filter(item =>
+        (selectedSuppliers.length === 0 || selectedSuppliers.includes(cleanSupplierName(item.brand || item.supplier))) &&
+        (selectedMakes.length === 0 || selectedMakes.includes(getItemMake(item)))
+      );
+      const statusValues = STATUS_ORDER.slice();
+      const statusLabelMap = {};
+      statusValues.forEach(status => {
+        const count = statusSourceItems.filter(item => getNormalizedAvailability(item) === status).length;
+        statusLabelMap[status] = `${STATUS_LABELS[status]} (${count})`;
+      });
+      els.statusWrapper.style.display = 'block';
+      renderFilterList(statusValues, selectedStatuses, hasInitStatuses, els.statusFilters, els.statusToggle, 'Ничего не выбрано', 'Статусы', statusLabelMap);
+      els.statusToggle.disabled = false;
 
       if (makes.length > 0) {
         els.makeWrapper.style.display = 'block';
@@ -2471,16 +2491,14 @@ async function fetchClients() {
         els.detail.innerHTML = 'Нет данных для показа.';
         els.makeDropdown.style.display = 'none';
         els.statusDropdown.style.display = 'none';
-        els.statusWrapper.style.display = 'none';
         return;
       }
 
       const html = sorted.map(item => {
         const av = availabilityMeta(item);
         const titleText = `${item.brand || '—'} ${item.code || '—'}`.trim();
-        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(titleText)}`;
-        const mikadoLink = getMikadoLink(item);
-        const itemHref = mikadoLink || yandexSearch;
+        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(item.name || titleText)}`;
+        const itemHref = yandexSearch;
         return `
           <article class="result-item" data-id="${item.id}">
             <div class="row">
@@ -2752,7 +2770,7 @@ async function fetchClients() {
           <div class="kv">
             <div>Опт</div><div>${money(item.priceOpt || item.priceRetail)}</div>
             <div>Статус</div><div><span class="chip ${av.cls}">${av.text}</span></div>
-            <div>Срок / склад</div><div>${item.stockText || item.warehouse || '—'}</div>
+            <div>Срок / склад</div><div>${formatWarehouseInfo(item)}</div>
           </div>
           <div class="toolbar">
             <button id="panelAddCartBtn" class="link-button secondary" type="button">Добавить в корзину</button>
