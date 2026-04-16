@@ -2198,7 +2198,7 @@ async function fetchClients() {
     }
 
     function getMikadoLink(item) {
-      const code = item.mikadoCode || item.code;
+      const code = item.mikadoCode;
       if (!code) return '';
       return `https://mikado-parts.ru/office/galleyp.asp?code=${encodeURIComponent(code)}`;
     }
@@ -2382,11 +2382,13 @@ async function fetchClients() {
         const av = availabilityMeta(item);
         const titleText = `${item.brand || '—'} ${item.code || '—'}`.trim();
         const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(titleText)}`;
+        const mikadoLink = getMikadoLink(item);
+        const itemHref = mikadoLink || yandexSearch;
         return `
           <article class="result-item" data-id="${item.id}">
             <div class="row">
               <div>
-                <div class="title"><a href="${yandexSearch}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${titleText}</a></div>
+                <div class="title"><a href="${itemHref}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">${titleText}</a></div>
                 <div class="sub">${item.name || '—'}</div>
               </div>
               <div class="price">

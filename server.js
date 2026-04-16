@@ -121,7 +121,7 @@ function parseCodeSearchXml(xml) {
     items.push({
       id: `${producerCode || 'item'}_${idx++}`,
       code: producerCode,
-      mikadoCode: zakazCode || producerCode,
+      mikadoCode: zakazCode,
       name: getTagValue(row, "Name") || getTagValue(row, "NameOfPart"),
       priceOpt: priceRUR,
       priceRetail: priceRUR,
