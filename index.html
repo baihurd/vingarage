@@ -2155,14 +2155,14 @@ async function fetchClients() {
 
     function getAvailabilityText(item) {
       if (item == null) return '';
-      const availability = item.availability != null ? String(item.availability).trim() : '';
       const stockText = item.stockText != null ? String(item.stockText).trim() : '';
       const warehouse = item.warehouse != null ? String(item.warehouse).trim() : '';
       const rawAvail = item.raw && item.raw.availability != null ? String(item.raw.availability).trim() : '';
       const rawStock = item.raw && item.raw.stockText != null ? String(item.raw.stockText).trim() : '';
       const rawContent = flattenRawValue(item.raw);
+      const availability = item.availability != null ? String(item.availability).trim() : '';
 
-      const sources = [availability, stockText, warehouse, rawAvail, rawStock, rawContent].filter(Boolean);
+      const sources = [stockText, warehouse, rawStock, rawAvail, rawContent, availability].filter(Boolean);
       return sources[0] || '';
     }
 
@@ -2210,13 +2210,25 @@ async function fetchClients() {
       return `https://mikado-parts.ru/office/galleyp.asp?code=${encodeURIComponent(code)}`;
     }
 
-    function formatWarehouseInfo(item) {
+    function getWarehouseSourceText(item) {
       const warehouse = String(item.warehouse || '').trim();
       const stockText = String(item.stockText || '').trim();
-      const fallbackText = String(getAvailabilityText(item) || '').trim();
-      const info = warehouse && stockText ? `${warehouse} ${stockText}` : warehouse || stockText || fallbackText;
-      if (!info) return '—';
-      const source = info || fallbackText;
+      if (warehouse || stockText) {
+        return warehouse && stockText ? `${warehouse} ${stockText}` : warehouse || stockText;
+      }
+
+      const rawStock = item.raw && item.raw.stockText ? String(item.raw.stockText).trim() : '';
+      const rawAvail = item.raw && item.raw.availability ? String(item.raw.availability).trim() : '';
+      const rawWarehouse = rawStock || rawAvail;
+      if (!rawWarehouse || /^(аналог|analog)$/i.test(rawWarehouse)) {
+        return '';
+      }
+      return rawWarehouse;
+    }
+
+    function formatWarehouseInfo(item) {
+      const source = getWarehouseSourceText(item);
+      if (!source) return '—';
       return source
         .split(/\r?\n/)
         .map(line => line.trim())
