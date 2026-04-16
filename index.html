@@ -2352,9 +2352,10 @@ async function fetchClients() {
 
       // Сортируем по имени
       const sortedGroups = Object.keys(valueGroups).sort();
+      const visibleGroups = sortedGroups.filter(cleanedName => groupCounts[cleanedName] > 0);
 
       // Отрендериваем в 3 столбца
-      const html = sortedGroups.map(cleanedName => `
+      const html = visibleGroups.map(cleanedName => `
         <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <input type="checkbox" value="${cleanedName}"${selectedList.includes(cleanedName) ? ' checked' : ''} />
