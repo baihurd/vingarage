@@ -1416,18 +1416,12 @@
             <div id="statusFilters" class="checkbox-group"></div>
           </div>
         </div>
-        <div class="checkbox-dropdown-wrapper" id="brandWrapper" style="display:none;">
-          <label>Бренды</label>
-          <button type="button" id="brandToggle" class="checkbox-dropdown-toggle">Выбрать бренды</button>
-          <div id="brandDropdown" class="checkbox-dropdown" style="display:none;">
-            <div id="brandFilters" class="checkbox-group"></div>
-          </div>
-        </div>
         <div class="checkbox-dropdown-wrapper" id="supplierWrapper" style="display:none;">
           <label>Производители</label>
           <button type="button" id="supplierToggle" class="checkbox-dropdown-toggle">Выбрать производителей</button>
           <div id="supplierDropdown" class="checkbox-dropdown" style="display:none;">
             <div id="supplierFilters" class="checkbox-group"></div>
+            <button id="applySupplierBtn" class="link-button" style="width: 100%; margin-top: 10px;">Применить</button>
           </div>
         </div>
         <div class="checkbox-dropdown-wrapper" id="makeWrapper" style="display:none;">
@@ -1514,14 +1508,11 @@
       results: document.getElementById('results'),
       detail: document.getElementById('detail'),
       searchBtn: document.getElementById('searchBtn'),
-      brandWrapper: document.getElementById('brandWrapper'),
-      brandToggle: document.getElementById('brandToggle'),
-      brandDropdown: document.getElementById('brandDropdown'),
-      brandFilters: document.getElementById('brandFilters'),
       supplierWrapper: document.getElementById('supplierWrapper'),
       supplierToggle: document.getElementById('supplierToggle'),
       supplierDropdown: document.getElementById('supplierDropdown'),
       supplierFilters: document.getElementById('supplierFilters'),
+      applySupplierBtn: document.getElementById('applySupplierBtn'),
       makeWrapper: document.getElementById('makeWrapper'),
       makeToggle: document.getElementById('makeToggle'),
       makeDropdown: document.getElementById('makeDropdown'),
@@ -1539,13 +1530,11 @@
     const CART_KEY = 'vin_garage_cart';
     let currentItems = [];
     let cartItems = [];
-    let selectedBrands = [];
-    let selectedMakes = [];
     let selectedSuppliers = [];
+    let selectedMakes = [];
     let priceSortDesc = true;
-    const hasInitBrands = { value: false };
-    const hasInitMakes = { value: false };
     const hasInitSuppliers = { value: false };
+    const hasInitMakes = { value: false };
     const STATUS_LABELS = {
       our_stock: 'Наш склад',
       partner_stock: 'Склад партнёра',
@@ -2238,9 +2227,6 @@ async function fetchClients() {
       if (selectedStatuses.length > 0 && selectedStatuses.length < Object.keys(STATUS_LABELS).length) {
         filtered = filtered.filter(item => selectedStatuses.includes(getNormalizedAvailability(item)));
       }
-      if (selectedBrands.length > 0) {
-        filtered = filtered.filter(item => selectedBrands.includes(item.brand));
-      }
       if (selectedSuppliers.length > 0) {
         filtered = filtered.filter(item => selectedSuppliers.includes(item.supplier));
       }
@@ -2261,9 +2247,11 @@ async function fetchClients() {
       }
     }
 
-    function syncSelected(allValues, selectedList, initFlag) {
+    function syncSelected(allValues, selectedList, initFlag, doNotSelectAll = false) {
       if (!initFlag.value) {
-        selectedList.splice(0, selectedList.length, ...allValues);
+        if (!doNotSelectAll) {
+          selectedList.splice(0, selectedList.length, ...allValues);
+        }
         initFlag.value = true;
       } else {
         const filtered = selectedList.filter(value => allValues.includes(value));
@@ -2298,9 +2286,8 @@ async function fetchClients() {
     }
 
     function renderSupplierFilterWithPrices(allSuppliers, selectedList, initFlag, container, toggleEl, items) {
-      syncSelected(allSuppliers, selectedList, initFlag);
-      
-      // Вычисляем минимальную цену для каждого производителя
+      syncSelected(allSuppliers, selectedList, initFlag, true); // не автоматически выбираем всех
+
       const supplierPrices = {};
       allSuppliers.forEach(supplier => {
         const supplierItems = items.filter(item => item.supplier === supplier);
@@ -2329,12 +2316,22 @@ async function fetchClients() {
             const idx = selectedList.indexOf(value);
             if (idx !== -1) selectedList.splice(idx, 1);
           }
-          updateToggle(toggleEl, selectedList, 'Ничего не выбрано', 'Производители');
-          renderResults(currentItems);
+          updateToggle(toggleEl, selectedList, 'Выбрать производителей', 'Производители');
         });
       });
 
-      updateToggle(toggleEl, selectedList, 'Ничего не выбрано', 'Производители');
+      // Кнопка Применить
+      if (els.applySupplierBtn) {
+        els.applySupplierBtn.removeEventListener('click', handleApplySupplier);
+        els.applySupplierBtn.addEventListener('click', handleApplySupplier);
+      }
+
+      updateToggle(toggleEl, selectedList, 'Выбрать производителей', 'Производители');
+    }
+
+    function handleApplySupplier() {
+      renderResults(currentItems);
+      els.supplierDropdown.style.display = 'none';
     }
 
     function getDeliveryDays(item) {
@@ -2387,17 +2384,8 @@ async function fetchClients() {
 
     function renderResults(items) {
       currentItems = items;
-      const brands = [...new Set(items.map(item => item.brand).filter(Boolean))].sort();
       const suppliers = [...new Set(items.map(item => item.supplier).filter(Boolean))].sort();
       const makes = [...new Set(items.map(getItemMake).filter(Boolean))].sort();
-
-      if (brands.length > 0) {
-        els.brandWrapper.style.display = 'block';
-        renderFilterList(brands, selectedBrands, hasInitBrands, els.brandFilters, els.brandToggle, 'Ничего не выбрано', 'Бренды');
-        els.brandToggle.disabled = false;
-      } else {
-        els.brandWrapper.style.display = 'none';
-      }
 
       if (suppliers.length > 0) {
         els.supplierWrapper.style.display = 'block';
@@ -2443,7 +2431,6 @@ async function fetchClients() {
         els.results.innerHTML = 'Ничего не найдено по выбранному коду и статусу.';
         els.detail.className = 'empty';
         els.detail.innerHTML = 'Нет данных для показа.';
-        els.brandDropdown.style.display = 'none';
         els.makeDropdown.style.display = 'none';
         els.statusDropdown.style.display = 'none';
         els.statusWrapper.style.display = 'none';
@@ -2628,34 +2615,42 @@ async function fetchClients() {
 
     loadCart();
     renderCart();
-    els.brandToggle.addEventListener('click', () => {
-      els.brandDropdown.style.display = els.brandDropdown.style.display === 'block' ? 'none' : 'block';
-      els.makeDropdown.style.display = 'none';
-      els.statusDropdown.style.display = 'none';
-      els.supplierDropdown.style.display = 'none';
-    });
     els.makeToggle.addEventListener('click', () => {
       els.makeDropdown.style.display = els.makeDropdown.style.display === 'block' ? 'none' : 'block';
-      els.brandDropdown.style.display = 'none';
       els.statusDropdown.style.display = 'none';
       els.supplierDropdown.style.display = 'none';
     });
     els.supplierToggle.addEventListener('click', () => {
       els.supplierDropdown.style.display = els.supplierDropdown.style.display === 'block' ? 'none' : 'block';
-      els.brandDropdown.style.display = 'none';
       els.makeDropdown.style.display = 'none';
       els.statusDropdown.style.display = 'none';
     });
     els.statusToggle.addEventListener('click', () => {
       els.statusDropdown.style.display = els.statusDropdown.style.display === 'block' ? 'none' : 'block';
-      els.brandDropdown.style.display = 'none';
       els.makeDropdown.style.display = 'none';
       els.supplierDropdown.style.display = 'none';
     });
+    
+    // Apply Supplier Button
+    els.applySupplierBtn.removeEventListener('click', handleApplySupplier);
+    els.applySupplierBtn.addEventListener('click', handleApplySupplier);
+    
+    // Supplier checkboxes
+    const supplierCheckboxes = els.supplierFilters.querySelectorAll('input[type="checkbox"]');
+    supplierCheckboxes.forEach(checkbox => {
+      checkbox.removeEventListener('change', (e) => {
+        selectedSuppliers = Array.from(supplierCheckboxes)
+          .filter(cb => cb.checked)
+          .map(cb => cb.value);
+      });
+      checkbox.addEventListener('change', (e) => {
+        selectedSuppliers = Array.from(supplierCheckboxes)
+          .filter(cb => cb.checked)
+          .map(cb => cb.value);
+      });
+    });
+    
     document.addEventListener('click', (event) => {
-      if (!els.brandWrapper.contains(event.target) && event.target !== els.brandToggle) {
-        els.brandDropdown.style.display = 'none';
-      }
       if (!els.makeWrapper.contains(event.target) && event.target !== els.makeToggle) {
         els.makeDropdown.style.display = 'none';
       }
