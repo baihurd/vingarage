@@ -2263,10 +2263,11 @@ async function fetchClients() {
           priceBtn.textContent = 'Анализирую...';
 
           try {
+            const currentPrice = Number(selectedItem.priceOpt || selectedItem.priceRetail || 0);
             const response = await fetch('/api/price-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ partName: query })
+              body: JSON.stringify({ partName: query, currentPrice })
             });
 
             const data = await response.json();
