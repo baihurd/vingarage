@@ -1396,6 +1396,7 @@
           <select id="vinSite">
             <option value="partsouq">Partsouq</option>
             <option value="partsresource">Parts-resource</option>
+            <option value="avtoto">Avtoto.ru</option>
             <option value="17vin">17vin.com(Китай)</option>
           </select>
         </div>
@@ -1561,6 +1562,12 @@
         url: (vin) => vin
           ? `https://www.parts-resource.ru/cats/?article=${encodeURIComponent(vin)}`
           : 'https://www.parts-resource.ru/cats/',
+      },
+      avtoto: {
+        label: 'Avtoto.ru',
+        url: (vin) => vin
+          ? `https://www.avtoto.ru/pvz.html#catalogs:find_vehicle_by_vin.vin:${encodeURIComponent(vin)}`
+          : 'https://www.avtoto.ru/pvz.html',
       },
       '17vin': {
         label: '17vin.com(Китай)',
