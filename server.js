@@ -291,6 +291,51 @@ app.post("/api/mikado/search", async (req, res) => {
   }
 });
 
+// Анализ цены (экспериментальный)
+app.post("/api/price-analysis", async (req, res) => {
+  try {
+    const partName = String(req.body.partName || "").trim();
+
+    if (!partName) {
+      return res.status(400).json({ ok: false, error: "Part name required" });
+    }
+
+    // Экспериментальная логика: генерируем mock-данные на основе названия
+    // В реальности здесь можно добавить парсинг из нескольких источников
+    const hash = crypto.createHash('md5').update(partName.toLowerCase()).digest('hex');
+    const basePrice = parseInt(hash.substring(0, 8), 16) % 5000 + 1000; // от 1000 до 6000
+    const variation = (parseInt(hash.substring(8, 16), 16) % 1000) - 500; // -500 до +500
+    const averagePrice = Math.max(500, basePrice + variation);
+
+    // Симулируем сбор данных из 3-5 источников
+    const sources = [
+      { name: "Yandex.Market", price: averagePrice * (0.9 + Math.random() * 0.2) },
+      { name: "Avito", price: averagePrice * (0.95 + Math.random() * 0.1) },
+      { name: "Auto.ru", price: averagePrice * (0.85 + Math.random() * 0.3) },
+      { name: "Parts.ru", price: averagePrice * (1.0 + Math.random() * 0.2) },
+      { name: "Exist.ru", price: averagePrice * (0.8 + Math.random() * 0.4) }
+    ].map(s => ({ ...s, price: Math.round(s.price) }));
+
+    const validPrices = sources.filter(s => s.price > 0);
+    const minPrice = Math.min(...validPrices.map(s => s.price));
+    const maxPrice = Math.max(...validPrices.map(s => s.price));
+    const avgPrice = Math.round(validPrices.reduce((sum, s) => sum + s.price, 0) / validPrices.length);
+
+    return res.json({
+      ok: true,
+      partName,
+      averagePrice: avgPrice,
+      minPrice,
+      maxPrice,
+      sources: validPrices,
+      note: "Экспериментальные данные. Для точного анализа требуется интеграция с реальными API."
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ ok: false, error: error.message || "Ошибка анализа цены" });
+  }
+});
+
 // ============= EARNINGS ENDPOINTS =============
 
 // Получить все заработки

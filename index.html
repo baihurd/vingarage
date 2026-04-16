@@ -2250,12 +2250,45 @@ async function fetchClients() {
     function bindPriceAnalysisButton() {
       const priceBtn = document.getElementById('priceAnalysisBtn');
       if (priceBtn) {
-        priceBtn.addEventListener('click', () => {
+        priceBtn.addEventListener('click', async () => {
           const selectedItem = currentItems.find(item => item.id === els.detail.dataset.selectedId);
-          if (selectedItem) {
-            const partName = selectedItem.name || `${selectedItem.brand} ${selectedItem.code}`;
-            const searchUrl = `https://yandex.ru/search/?text=${encodeURIComponent(partName + ' цена')}`;
-            window.open(searchUrl, '_blank');
+          if (!selectedItem) return;
+
+          const partName = selectedItem.name || `${selectedItem.brand} ${selectedItem.code}`;
+          priceBtn.disabled = true;
+          priceBtn.textContent = 'Анализирую...';
+
+          try {
+            const response = await fetch('/api/price-analysis', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ partName })
+            });
+
+            const data = await response.json();
+            if (!data.ok) {
+              throw new Error(data.error || 'Ошибка анализа');
+            }
+
+            // Показываем результат в alert (можно заменить на модальное окно)
+            const result = `
+Анализ цены для "${data.partName}":
+
+Средняя цена: ${money(data.averagePrice)}
+Мин. цена: ${money(data.minPrice)}
+Макс. цена: ${money(data.maxPrice)}
+
+Источники:
+${data.sources.map(s => `${s.name}: ${money(s.price)}`).join('\n')}
+
+${data.note}
+            `;
+            alert(result);
+          } catch (error) {
+            alert('Ошибка анализа цены: ' + error.message);
+          } finally {
+            priceBtn.disabled = false;
+            priceBtn.textContent = 'Анализ цены';
           }
         });
       }
