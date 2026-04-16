@@ -2254,7 +2254,10 @@ async function fetchClients() {
           const selectedItem = currentItems.find(item => item.id === els.detail.dataset.selectedId);
           if (!selectedItem) return;
 
-          const partName = selectedItem.name || `${selectedItem.brand} ${selectedItem.code}`;
+          const partName = [selectedItem.code, selectedItem.name, selectedItem.brand]
+            .filter(Boolean)
+            .join(' ');
+          const query = `${selectedItem.code || ''} ${selectedItem.name || ''}`.trim() || partName;
           priceBtn.disabled = true;
           priceBtn.textContent = 'Анализирую...';
 
@@ -2262,7 +2265,7 @@ async function fetchClients() {
             const response = await fetch('/api/price-analysis', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ partName })
+              body: JSON.stringify({ partName: query })
             });
 
             const data = await response.json();
@@ -2270,7 +2273,6 @@ async function fetchClients() {
               throw new Error(data.error || 'Ошибка анализа');
             }
 
-            // Показываем результат в alert (можно заменить на модальное окно)
             const result = `
 Анализ цены для "${data.partName}":
 
