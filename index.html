@@ -1627,6 +1627,7 @@
           throw new Error(data.error || 'Ошибка загрузки данных');
         }
         earningsEntries = Array.isArray(data.entries) ? data.entries : [];
+        saveLocalEarnings(earningsEntries);
       } catch (error) {
         console.error('fetchEarnings error:', error);
         earningsEntries = loadLocalEarnings();
@@ -1766,6 +1767,7 @@ async function fetchClients() {
       throw new Error(data.error || 'Ошибка загрузки клиентов');
     }
     clientEntries = Array.isArray(data.entries) ? data.entries : [];
+    saveLocalClients(clientEntries);
   } catch (error) {
     console.error('fetchClients error:', error);
     clientEntries = loadLocalClients();
