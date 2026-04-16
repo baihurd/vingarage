@@ -1011,14 +1011,16 @@
       position: absolute;
       top: calc(100% + 8px);
       left: 0;
-      width: 100%;
+      min-width: 100%;
+      width: auto;
+      max-width: 520px;
       z-index: 5;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: rgba(15,19,26,0.98);
       box-shadow: 0 20px 50px rgba(0,0,0,.35);
       padding: 10px;
-      max-height: 250px;
+      max-height: 340px;
       overflow-y: auto;
     }
 
@@ -2286,10 +2288,8 @@ async function fetchClients() {
     }
 
     function cleanSupplierName(supplier) {
-      // Удаляем префиксы типа "Склад ", "Warehouse ", "наличие " и т.д.
+      // Удаляем префиксы типа "наличие " и т.п., но сохраняем названия складов/поставщиков целиком.
       let cleaned = supplier
-        .replace(/^Склад /i, '')
-        .replace(/^Warehouse /i, '')
         .replace(/^наличие /i, '')
         .replace(/^наличие/i, '')
         .trim();
