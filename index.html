@@ -2254,10 +2254,11 @@ async function fetchClients() {
           const selectedItem = currentItems.find(item => item.id === els.detail.dataset.selectedId);
           if (!selectedItem) return;
 
-          const partName = [selectedItem.code, selectedItem.name, selectedItem.brand]
+          const vendor = selectedItem.brand || selectedItem.supplier || '';
+          const partName = [vendor, selectedItem.code, selectedItem.name]
             .filter(Boolean)
             .join(' ');
-          const query = `${selectedItem.code || ''} ${selectedItem.name || ''}`.trim() || partName;
+          const query = partName;
           priceBtn.disabled = true;
           priceBtn.textContent = 'Анализирую...';
 
