@@ -113,11 +113,58 @@ function parseCodeSearchXml(xml) {
   const re = /<(?:Code_List_Row|Row)>([\s\S]*?)<\/(?:Code_List_Row|Row)>/gi;
   let m;
   let idx = 0;
+
+  function parseOnStocks(onStocksXml) {
+    const stockLines = [];
+    const stockLineRegex = /<StockLine>([\s\S]*?)<\/StockLine>/gi;
+    let stockMatch;
+    while ((stockMatch = stockLineRegex.exec(onStocksXml))) {
+      const stockLineXml = stockMatch[1];
+      const stokName = getTagValue(stockLineXml, "StokName");
+      const stockQty = parseInt(getTagValue(stockLineXml, "StockQTY"), 10) || 0;
+      const deliveryDelay = getTagValue(stockLineXml, "DeliveryDelay");
+      if (stokName || stockQty) {
+        stockLines.push({ stokName, stockQty, deliveryDelay });
+      }
+    }
+    return stockLines;
+  }
+
   while ((m = re.exec(xml))) {
     const row = m[1];
     const zakazCode = getTagValue(row, "ZakazCode");
     const producerCode = getTagValue(row, "ProducerCode") || zakazCode;
     const priceRUR = parseFloat(getTagValue(row, "PriceRUR") || getTagValue(row, "Cost") || getTagValue(row, "Vartosp") || 0);
+    const supplier = getTagValue(row, "Supplier");
+    const producerBrand = getTagValue(row, "ProducerBrand");
+    const brand = producerBrand || getTagValue(row, "Brand");
+    const srock = getTagValue(row, "Srock");
+    const onMyStock = getTagValue(row, "OnMyStock");
+    const onStocksXml = getTagValue(row, "OnStocks");
+    const stockLines = parseOnStocks(onStocksXml);
+    const hasStockLines = stockLines.some(line => line.stockQty > 0);
+    const stockText = hasStockLines
+      ? stockLines.map(line => `${line.stokName} ${line.stockQty}шт${line.deliveryDelay ? ` (${line.deliveryDelay} дн.)` : ``}`).join(', ')
+      : srock || onMyStock || "";
+    const warehouse = hasStockLines
+      ? ''
+      : onMyStock
+      ? 'Наш склад'
+      : supplier || "";
+    const availability = hasStockLines
+      ? 'our_stock'
+      : onMyStock && !/^(0|\?|—)$/i.test(onMyStock)
+      ? 'our_stock'
+      : /отл\.?\s*срок|отл\.?\s*спрос|отложен/i.test(srock + " " + supplier)
+      ? 'delayed'
+      : /контейнер|варианты/i.test(srock + " " + supplier)
+      ? 'container'
+      : /\d+\s*дн/i.test(srock)
+      ? 'partner_stock'
+      : /склад\s*№|Склад\s*№|METACO|FAST|Zekkert|JapanParts|ASHIKA|Japan/i.test(supplier)
+      ? 'partner_stock'
+      : 'unavailable';
+
     items.push({
       id: `${producerCode || 'item'}_${idx++}`,
       code: producerCode,
@@ -125,26 +172,27 @@ function parseCodeSearchXml(xml) {
       name: getTagValue(row, "Name") || getTagValue(row, "NameOfPart"),
       priceOpt: priceRUR,
       priceRetail: priceRUR,
-      stockText: getTagValue(row, "Srock") || getTagValue(row, "OnMyStock") || "",
-      availability: getTagValue(row, "CodeType") || "",
-      supplier: getTagValue(row, "Supplier"),
-      brand: getTagValue(row, "ProducerBrand") || getTagValue(row, "Brand"),
+      stockText,
+      availability,
+      supplier,
+      brand,
       country: getTagValue(row, "Country"),
+      warehouse,
       raw: {
         ZakazCode: getTagValue(row, "ZakazCode"),
-        Supplier: getTagValue(row, "Supplier"),
-        ProducerBrand: getTagValue(row, "ProducerBrand"),
+        Supplier: supplier,
+        ProducerBrand: producerBrand,
         ProducerCode: getTagValue(row, "ProducerCode"),
         Brand: getTagValue(row, "Brand"),
         Country: getTagValue(row, "Country"),
         Name: getTagValue(row, "Name"),
-        OnStocks: getTagValue(row, "OnStocks"),
+        OnStocks: onStocksXml,
         PriceRUR: getTagValue(row, "PriceRUR"),
-        Srock: getTagValue(row, "Srock"),
+        Srock: srock,
         CodeType: getTagValue(row, "CodeType"),
         Source: getTagValue(row, "Source"),
         PrefixLength: getTagValue(row, "PrefixLength"),
-        OnMyStock: getTagValue(row, "OnMyStock"),
+        OnMyStock: onMyStock,
         MinZakazQTY: getTagValue(row, "MinZakazQTY"),
       }
     });
