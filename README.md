@@ -1,29 +1,120 @@
-# VIN Garage Deployment
+# 🚗 VinGarage - Каталог и отслеживание запчастей
 
-## Что уже готово
-- `package.json` содержит `start` скрипт: `npm start`
-- `server.js` теперь использует порт из `process.env.PORT || 3000`
-- приложение может работать как Node/Express сервер с фронтендом и прокси API
+Приложение для поиска запчастей по VIN и кодам, отслеживания прибыли и управления клиентами.
 
-## Как развернуть на бесплатном хостинге
+## 🌐 Приложение работает онлайн:
 
-### Вариант 1: Render.com
-1. Зарегистрируйтесь на https://render.com
-2. Создайте новый `Web Service`
-3. Подключите свой GitHub репозиторий с этим проектом
-4. В разделе `Build Command` укажите:
-   - `npm install`
-5. В разделе `Start Command` укажите:
-   - `npm start`
-6. Render сам задаст `PORT` в окружении, и приложение будет слушать его
+```
+https://vingarage.onrender.com/
+```
 
-### Вариант 2: Railway.app
-1. Зарегистрируйтесь на https://railway.app
-2. Создайте новый проект и подключите GitHub репозиторий
-3. Укажите команду запуска:
-   - `npm start`
-4. Railway тоже передаст `PORT` в окружение автоматически
+## 🔄 Как работает:
 
-### Важное
-- Этот сайт нельзя просто разместить на GitHub Pages или Netlify как чистый статический сайт, потому что он требует Node.js-сервер для прокси запросов к Mikado.
-- Если потребуется, я могу помочь создать репозиторий и подготовить проект к разворачиванию шаг за шагом.
+### 1. Данные хранятся на GitHub
+- `earnings.json` - история заработков
+- `clients.json` - список клиентов
+- Все автоматически синхронизируется
+
+### 2. При добавлении записи:
+```
+User → API POST → earnings.json → git commit → GitHub
+```
+
+### 3. При перезагрузке Render:
+```
+git pull → load data → Ready!
+```
+
+## ✨ Фишки:
+
+- ✅ Поиск по VIN и кодам запчастей
+- ✅ Отслеживание заработков
+- ✅ Управление клиентами
+- ✅ Сохранение в корзину
+- ✅ Данные на GitHub (не теряются)
+- ✅ Работает на Free Tier Render
+
+## 📱 Функции:
+
+### Поиск
+- По коду детали (0265008135, MAG3482)
+- По VIN автомобиля
+- Выбор сайта поиска
+
+### Заработки
+- Добавить заработок
+- История заработков
+- Автоматическое сохранение на GitHub
+
+### Клиенты
+- Добавить клиента
+- Сохранить контакты (имя, телефон, VIN)
+- История всех клиентов
+
+### Корзина
+- Добавлять детали
+- Расчет прибыли (цена - оптовая цена)
+- Быстрое добавление в заработки
+
+## 🛠️ Стек:
+
+- **Frontend:** HTML, CSS, JavaScript
+- **Backend:** Node.js, Express
+- **Storage:** JSON файлы + GitHub автосинхронизация
+- **Hosting:** Render.com (Free Tier)
+- **VCS:** Git, GitHub
+
+## 🚀 Автоматический деплой:
+
+При каждом push на GitHub:
+```bash
+git push → GitHub → Render auto-deploy → Live!
+```
+
+Никакой ручной работы! 🎉
+
+## 📚 Документация:
+
+- `GITHUB_STORAGE.md` - как работает хранение на GitHub
+- `GITHUB_STORAGE_READY.md` - статус готовности
+- `server.js` - backend код с комментариями
+- `index.html` - frontend код
+
+## 🔧 Для разработки (локально):
+
+```bash
+cd C:\Users\gerak\Desktop\VINGARAGE
+npm install
+node server.js
+```
+
+Откроется на `http://localhost:3000`
+
+## 📝 Коммиты в GitHub:
+
+Каждое действие автоматически коммитится:
+
+```
+✅ Add earning: 1500 ₽
+✅ Add client: Иван Петров
+✅ Delete earning: xxxxx
+```
+
+Все в истории git! 📦
+
+## 🌍 URL:
+
+- **Production:** https://vingarage.onrender.com/
+- **GitHub Repo:** https://github.com/baihurd/vingarage
+- **API Base:** https://vingarage.onrender.com/api/
+
+## 📊 Статус:
+
+- ✅ Production: LIVE на Render
+- ✅ GitHub Storage: ACTIVE
+- ✅ Auto-deploy: ENABLED
+- ✅ Data Backup: GitHub
+
+---
+
+**Версия:** 2.0 (Render + GitHub Storage)
