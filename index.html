@@ -2228,7 +2228,7 @@ async function fetchClients() {
         filtered = filtered.filter(item => selectedStatuses.includes(getNormalizedAvailability(item)));
       }
       if (selectedSuppliers.length > 0) {
-        filtered = filtered.filter(item => selectedSuppliers.includes(item.supplier));
+        filtered = filtered.filter(item => selectedSuppliers.includes(cleanSupplierName(item.supplier)));
       }
       if (selectedMakes.length > 0) {
         filtered = filtered.filter(item => selectedMakes.includes(getItemMake(item)));
@@ -2285,27 +2285,64 @@ async function fetchClients() {
       updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
     }
 
+    function cleanSupplierName(supplier) {
+      // Удаляем префиксы типа "Склад ", "Warehouse ", "наличие " и т.д.
+      let cleaned = supplier
+        .replace(/^Склад /i, '')
+        .replace(/^Warehouse /i, '')
+        .replace(/^наличие /i, '')
+        .replace(/^наличие/i, '')
+        .trim();
+      // Убираем скобки со складом/кодом в конце типа "[KALE]", "(SAT)" и т.д.
+      cleaned = cleaned.replace(/\s*\[.*?\]\s*$/i, '').replace(/\s*\(.*?\)\s*$/i, '').trim();
+      return cleaned || supplier;
+    }
+
     function renderSupplierFilterWithPrices(allSuppliers, selectedList, initFlag, container, toggleEl, items) {
       syncSelected(allSuppliers, selectedList, initFlag, true); // не автоматически выбираем всех
 
-      const supplierPrices = {};
+      // Группируем поставщиков по очищенному имени, но сохраняем оригинальные имена
+      const supplierGroups = {};
+      const cleanedToOriginal = {};
+      
       allSuppliers.forEach(supplier => {
-        const supplierItems = items.filter(item => item.supplier === supplier);
-        const minPrice = supplierItems.length > 0 
-          ? Math.min(...supplierItems.map(item => item.priceOpt || item.priceRetail || 999999))
-          : 0;
-        supplierPrices[supplier] = minPrice;
+        const cleaned = cleanSupplierName(supplier);
+        if (!supplierGroups[cleaned]) {
+          supplierGroups[cleaned] = [];
+          cleanedToOriginal[cleaned] = cleaned; // Используем очищенное имя для отображения
+        }
+        supplierGroups[cleaned].push(supplier);
       });
 
-      container.innerHTML = allSuppliers.map(supplier => `
-        <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+      // Считаем минимальную цену по группе
+      const groupPrices = {};
+      Object.keys(supplierGroups).forEach(cleanedName => {
+        const groupSuppliers = supplierGroups[cleanedName];
+        const allGroupItems = groupSuppliers.flatMap(s => items.filter(item => item.supplier === s));
+        const minPrice = allGroupItems.length > 0 
+          ? Math.min(...allGroupItems.map(item => item.priceOpt || item.priceRetail || 999999))
+          : 0;
+        groupPrices[cleanedName] = minPrice;
+      });
+
+      // Сортируем по имени
+      const sortedGroups = Object.keys(supplierGroups).sort();
+
+      // Отрендериваем в 3 столбца
+      const html = sortedGroups.map(cleanedName => `
+        <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0;">
           <div style="display: flex; align-items: center; gap: 6px;">
-            <input type="checkbox" value="${supplier}"${selectedList.includes(supplier) ? ' checked' : ''} />
-            <span>${supplier}</span>
+            <input type="checkbox" value="${cleanedName}"${selectedList.includes(cleanedName) ? ' checked' : ''} />
+            <span style="font-size: 14px;">${cleanedName}</span>
           </div>
-          <span style="font-size: 12px; color: var(--muted);">от ${money(supplierPrices[supplier])}</span>
+          <span style="font-size: 12px; color: var(--muted); white-space: nowrap;">от ${money(groupPrices[cleanedName])}</span>
         </label>
       `).join('');
+
+      container.style.display = 'grid';
+      container.style.gridTemplateColumns = 'repeat(3, 1fr)';
+      container.style.gap = '8px';
+      container.innerHTML = html;
 
       container.querySelectorAll('input').forEach(cb => {
         cb.addEventListener('change', (event) => {
@@ -2385,9 +2422,10 @@ async function fetchClients() {
     function renderResults(items) {
       currentItems = items;
       const suppliers = [...new Set(items.map(item => item.supplier).filter(Boolean))].sort();
+      const cleanedSuppliers = [...new Set(suppliers.map(cleanSupplierName))].sort();
       const makes = [...new Set(items.map(getItemMake).filter(Boolean))].sort();
 
-      if (suppliers.length > 0) {
+      if (cleanedSuppliers.length > 0) {
         els.supplierWrapper.style.display = 'block';
         renderSupplierFilterWithPrices(suppliers, selectedSuppliers, hasInitSuppliers, els.supplierFilters, els.supplierToggle, items);
         els.supplierToggle.disabled = false;
