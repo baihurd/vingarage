@@ -1013,14 +1013,14 @@
       left: 0;
       min-width: 100%;
       width: auto;
-      max-width: 520px;
+      max-width: min(720px, calc(100vw - 32px));
       z-index: 5;
       border: 1px solid var(--line);
       border-radius: 14px;
       background: rgba(15,19,26,0.98);
       box-shadow: 0 20px 50px rgba(0,0,0,.35);
       padding: 10px;
-      max-height: 340px;
+      max-height: 420px;
       overflow-y: auto;
     }
 
@@ -1419,8 +1419,8 @@
           </div>
         </div>
         <div class="checkbox-dropdown-wrapper" id="supplierWrapper" style="display:none;">
-          <label>Производители</label>
-          <button type="button" id="supplierToggle" class="checkbox-dropdown-toggle">Выбрать производителей</button>
+          <label>Бренды</label>
+          <button type="button" id="supplierToggle" class="checkbox-dropdown-toggle">Выбрать бренды</button>
           <div id="supplierDropdown" class="checkbox-dropdown" style="display:none;">
             <div id="supplierFilters" class="checkbox-group"></div>
             <button id="applySupplierBtn" class="link-button" style="width: 100%; margin-top: 10px;">Применить</button>
@@ -2230,7 +2230,7 @@ async function fetchClients() {
         filtered = filtered.filter(item => selectedStatuses.includes(getNormalizedAvailability(item)));
       }
       if (selectedSuppliers.length > 0) {
-        filtered = filtered.filter(item => selectedSuppliers.includes(cleanSupplierName(item.supplier)));
+        filtered = filtered.filter(item => selectedSuppliers.includes(cleanSupplierName(item.brand || item.supplier)));
       }
       if (selectedMakes.length > 0) {
         filtered = filtered.filter(item => selectedMakes.includes(getItemMake(item)));
@@ -2298,27 +2298,27 @@ async function fetchClients() {
       return cleaned || supplier;
     }
 
-    function renderSupplierFilterWithPrices(allSuppliers, selectedList, initFlag, container, toggleEl, items) {
-      syncSelected(allSuppliers, selectedList, initFlag, true); // не автоматически выбираем всех
+    function renderSupplierFilterWithPrices(allValues, selectedList, initFlag, container, toggleEl, items, valueKey = 'supplier', emptyLabel = 'Выбрать производителей', multiLabel = 'Производители') {
+      syncSelected(allValues, selectedList, initFlag, true); // не автоматически выбираем всех
 
-      // Группируем поставщиков по очищенному имени, но сохраняем оригинальные имена
-      const supplierGroups = {};
+      // Группируем значения по очищенному имени, но сохраняем оригинальные значения
+      const valueGroups = {};
       const cleanedToOriginal = {};
       
-      allSuppliers.forEach(supplier => {
-        const cleaned = cleanSupplierName(supplier);
-        if (!supplierGroups[cleaned]) {
-          supplierGroups[cleaned] = [];
-          cleanedToOriginal[cleaned] = cleaned; // Используем очищенное имя для отображения
+      allValues.forEach(value => {
+        const cleaned = cleanSupplierName(value);
+        if (!valueGroups[cleaned]) {
+          valueGroups[cleaned] = [];
+          cleanedToOriginal[cleaned] = cleaned;
         }
-        supplierGroups[cleaned].push(supplier);
+        valueGroups[cleaned].push(value);
       });
 
       // Считаем минимальную цену по группе
       const groupPrices = {};
-      Object.keys(supplierGroups).forEach(cleanedName => {
-        const groupSuppliers = supplierGroups[cleanedName];
-        const allGroupItems = groupSuppliers.flatMap(s => items.filter(item => item.supplier === s));
+      Object.keys(valueGroups).forEach(cleanedName => {
+        const groupValues = valueGroups[cleanedName];
+        const allGroupItems = groupValues.flatMap(s => items.filter(item => item[valueKey] === s));
         const minPrice = allGroupItems.length > 0 
           ? Math.min(...allGroupItems.map(item => item.priceOpt || item.priceRetail || 999999))
           : 0;
@@ -2326,7 +2326,7 @@ async function fetchClients() {
       });
 
       // Сортируем по имени
-      const sortedGroups = Object.keys(supplierGroups).sort();
+      const sortedGroups = Object.keys(valueGroups).sort();
 
       // Отрендериваем в 3 столбца
       const html = sortedGroups.map(cleanedName => `
@@ -2353,7 +2353,7 @@ async function fetchClients() {
             const idx = selectedList.indexOf(value);
             if (idx !== -1) selectedList.splice(idx, 1);
           }
-          updateToggle(toggleEl, selectedList, 'Выбрать производителей', 'Производители');
+          updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
         });
       });
 
@@ -2363,7 +2363,7 @@ async function fetchClients() {
         els.applySupplierBtn.addEventListener('click', handleApplySupplier);
       }
 
-      updateToggle(toggleEl, selectedList, 'Выбрать производителей', 'Производители');
+      updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
     }
 
     function handleApplySupplier() {
@@ -2421,13 +2421,13 @@ async function fetchClients() {
 
     function renderResults(items) {
       currentItems = items;
-      const suppliers = [...new Set(items.map(item => item.supplier).filter(Boolean))].sort();
-      const cleanedSuppliers = [...new Set(suppliers.map(cleanSupplierName))].sort();
+      const brands = [...new Set(items.map(item => item.brand || item.supplier).filter(Boolean))].sort();
+      const cleanedBrands = [...new Set(brands.map(cleanSupplierName))].sort();
       const makes = [...new Set(items.map(getItemMake).filter(Boolean))].sort();
 
-      if (cleanedSuppliers.length > 0) {
+      if (cleanedBrands.length > 0) {
         els.supplierWrapper.style.display = 'block';
-        renderSupplierFilterWithPrices(suppliers, selectedSuppliers, hasInitSuppliers, els.supplierFilters, els.supplierToggle, items);
+        renderSupplierFilterWithPrices(brands, selectedSuppliers, hasInitSuppliers, els.supplierFilters, els.supplierToggle, items, 'brand', 'Выбрать бренды', 'Бренды');
         els.supplierToggle.disabled = false;
       } else {
         els.supplierWrapper.style.display = 'none';
