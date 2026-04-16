@@ -1541,7 +1541,7 @@
       our_stock: 'Наш склад',
       partner_stock: 'Склад партнёра',
       delayed: 'Отложенный спрос',
-      container: 'Контейнер',
+      container: 'Варианты',
       unavailable: 'Недоступно',
     };
     const STATUS_ORDER = ['our_stock', 'partner_stock', 'delayed', 'container', 'unavailable'];
@@ -2197,7 +2197,7 @@ async function fetchClients() {
       if (normalized === 'our_stock') return { text: 'Наш склад', cls: 'good' };
       if (normalized === 'partner_stock') return { text: 'Склад партнера', cls: 'warn' };
       if (normalized === 'delayed') return { text: 'Отложенный спрос', cls: 'warn' };
-      if (normalized === 'container') return { text: 'Контейнер', cls: 'warn' };
+      if (normalized === 'container') return { text: 'Варианты', cls: 'warn' };
       return { text: 'Недоступно', cls: 'bad' };
     }
 
