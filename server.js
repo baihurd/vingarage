@@ -115,11 +115,13 @@ function parseCodeSearchXml(xml) {
   let idx = 0;
   while ((m = re.exec(xml))) {
     const row = m[1];
-    const producerCode = getTagValue(row, "ProducerCode") || getTagValue(row, "ZakazCode");
+    const zakazCode = getTagValue(row, "ZakazCode");
+    const producerCode = getTagValue(row, "ProducerCode") || zakazCode;
     const priceRUR = parseFloat(getTagValue(row, "PriceRUR") || getTagValue(row, "Cost") || getTagValue(row, "Vartosp") || 0);
     items.push({
       id: `${producerCode || 'item'}_${idx++}`,
       code: producerCode,
+      mikadoCode: zakazCode || producerCode,
       name: getTagValue(row, "Name") || getTagValue(row, "NameOfPart"),
       priceOpt: priceRUR,
       priceRetail: priceRUR,
