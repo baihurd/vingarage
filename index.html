@@ -1423,6 +1423,13 @@
             <div id="brandFilters" class="checkbox-group"></div>
           </div>
         </div>
+        <div class="checkbox-dropdown-wrapper" id="supplierWrapper" style="display:none;">
+          <label>Производители</label>
+          <button type="button" id="supplierToggle" class="checkbox-dropdown-toggle">Выбрать производителей</button>
+          <div id="supplierDropdown" class="checkbox-dropdown" style="display:none;">
+            <div id="supplierFilters" class="checkbox-group"></div>
+          </div>
+        </div>
         <div class="checkbox-dropdown-wrapper" id="makeWrapper" style="display:none;">
           <label>Марка авто</label>
           <button type="button" id="makeToggle" class="checkbox-dropdown-toggle">Выбрать марку</button>
@@ -1511,6 +1518,10 @@
       brandToggle: document.getElementById('brandToggle'),
       brandDropdown: document.getElementById('brandDropdown'),
       brandFilters: document.getElementById('brandFilters'),
+      supplierWrapper: document.getElementById('supplierWrapper'),
+      supplierToggle: document.getElementById('supplierToggle'),
+      supplierDropdown: document.getElementById('supplierDropdown'),
+      supplierFilters: document.getElementById('supplierFilters'),
       makeWrapper: document.getElementById('makeWrapper'),
       makeToggle: document.getElementById('makeToggle'),
       makeDropdown: document.getElementById('makeDropdown'),
@@ -1530,9 +1541,11 @@
     let cartItems = [];
     let selectedBrands = [];
     let selectedMakes = [];
+    let selectedSuppliers = [];
     let priceSortDesc = true;
     const hasInitBrands = { value: false };
     const hasInitMakes = { value: false };
+    const hasInitSuppliers = { value: false };
     const STATUS_LABELS = {
       our_stock: 'Наш склад',
       partner_stock: 'Склад партнёра',
@@ -2228,6 +2241,9 @@ async function fetchClients() {
       if (selectedBrands.length > 0) {
         filtered = filtered.filter(item => selectedBrands.includes(item.brand));
       }
+      if (selectedSuppliers.length > 0) {
+        filtered = filtered.filter(item => selectedSuppliers.includes(item.supplier));
+      }
       if (selectedMakes.length > 0) {
         filtered = filtered.filter(item => selectedMakes.includes(getItemMake(item)));
       }
@@ -2281,6 +2297,46 @@ async function fetchClients() {
       updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
     }
 
+    function renderSupplierFilterWithPrices(allSuppliers, selectedList, initFlag, container, toggleEl, items) {
+      syncSelected(allSuppliers, selectedList, initFlag);
+      
+      // Вычисляем минимальную цену для каждого производителя
+      const supplierPrices = {};
+      allSuppliers.forEach(supplier => {
+        const supplierItems = items.filter(item => item.supplier === supplier);
+        const minPrice = supplierItems.length > 0 
+          ? Math.min(...supplierItems.map(item => item.priceOpt || item.priceRetail || 999999))
+          : 0;
+        supplierPrices[supplier] = minPrice;
+      });
+
+      container.innerHTML = allSuppliers.map(supplier => `
+        <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="checkbox" value="${supplier}"${selectedList.includes(supplier) ? ' checked' : ''} />
+            <span>${supplier}</span>
+          </div>
+          <span style="font-size: 12px; color: var(--muted);">от ${money(supplierPrices[supplier])}</span>
+        </label>
+      `).join('');
+
+      container.querySelectorAll('input').forEach(cb => {
+        cb.addEventListener('change', (event) => {
+          const value = event.target.value;
+          if (event.target.checked) {
+            if (!selectedList.includes(value)) selectedList.push(value);
+          } else {
+            const idx = selectedList.indexOf(value);
+            if (idx !== -1) selectedList.splice(idx, 1);
+          }
+          updateToggle(toggleEl, selectedList, 'Ничего не выбрано', 'Производители');
+          renderResults(currentItems);
+        });
+      });
+
+      updateToggle(toggleEl, selectedList, 'Ничего не выбрано', 'Производители');
+    }
+
     function getDeliveryDays(item) {
       const raw = String(item.stockText || item.warehouse || '').toLowerCase();
       const daysMatch = raw.match(/(\d+)\s*дн/);
@@ -2332,6 +2388,7 @@ async function fetchClients() {
     function renderResults(items) {
       currentItems = items;
       const brands = [...new Set(items.map(item => item.brand).filter(Boolean))].sort();
+      const suppliers = [...new Set(items.map(item => item.supplier).filter(Boolean))].sort();
       const makes = [...new Set(items.map(getItemMake).filter(Boolean))].sort();
 
       if (brands.length > 0) {
@@ -2340,6 +2397,14 @@ async function fetchClients() {
         els.brandToggle.disabled = false;
       } else {
         els.brandWrapper.style.display = 'none';
+      }
+
+      if (suppliers.length > 0) {
+        els.supplierWrapper.style.display = 'block';
+        renderSupplierFilterWithPrices(suppliers, selectedSuppliers, hasInitSuppliers, els.supplierFilters, els.supplierToggle, items);
+        els.supplierToggle.disabled = false;
+      } else {
+        els.supplierWrapper.style.display = 'none';
       }
 
       const statusValues = [...new Set(items.map(item => getNormalizedAvailability(item)).filter(Boolean))].sort();
@@ -2567,16 +2632,25 @@ async function fetchClients() {
       els.brandDropdown.style.display = els.brandDropdown.style.display === 'block' ? 'none' : 'block';
       els.makeDropdown.style.display = 'none';
       els.statusDropdown.style.display = 'none';
+      els.supplierDropdown.style.display = 'none';
     });
     els.makeToggle.addEventListener('click', () => {
       els.makeDropdown.style.display = els.makeDropdown.style.display === 'block' ? 'none' : 'block';
       els.brandDropdown.style.display = 'none';
+      els.statusDropdown.style.display = 'none';
+      els.supplierDropdown.style.display = 'none';
+    });
+    els.supplierToggle.addEventListener('click', () => {
+      els.supplierDropdown.style.display = els.supplierDropdown.style.display === 'block' ? 'none' : 'block';
+      els.brandDropdown.style.display = 'none';
+      els.makeDropdown.style.display = 'none';
       els.statusDropdown.style.display = 'none';
     });
     els.statusToggle.addEventListener('click', () => {
       els.statusDropdown.style.display = els.statusDropdown.style.display === 'block' ? 'none' : 'block';
       els.brandDropdown.style.display = 'none';
       els.makeDropdown.style.display = 'none';
+      els.supplierDropdown.style.display = 'none';
     });
     document.addEventListener('click', (event) => {
       if (!els.brandWrapper.contains(event.target) && event.target !== els.brandToggle) {
@@ -2584,6 +2658,9 @@ async function fetchClients() {
       }
       if (!els.makeWrapper.contains(event.target) && event.target !== els.makeToggle) {
         els.makeDropdown.style.display = 'none';
+      }
+      if (!els.supplierWrapper.contains(event.target) && event.target !== els.supplierToggle) {
+        els.supplierDropdown.style.display = 'none';
       }
       if (!els.statusWrapper.contains(event.target) && event.target !== els.statusToggle) {
         els.statusDropdown.style.display = 'none';
