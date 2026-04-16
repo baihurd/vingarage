@@ -1627,7 +1627,6 @@
           throw new Error(data.error || 'Ошибка загрузки данных');
         }
         earningsEntries = Array.isArray(data.entries) ? data.entries : [];
-        saveLocalEarnings(earningsEntries);
       } catch (error) {
         console.error('fetchEarnings error:', error);
         earningsEntries = loadLocalEarnings();
@@ -1695,18 +1694,10 @@
       });
     }
 
-    async function openEarningsModal(defaultAmount, defaultComment) {
+    async function openEarningsModal() {
       const modal = document.getElementById('earningsModal');
       if (!modal) return;
       await loadEarningsData();
-      const amountInput = document.getElementById('earningsAmountInput');
-      const commentInput = document.getElementById('earningsCommentInput');
-      if (amountInput && defaultAmount != null && !Number.isNaN(Number(defaultAmount))) {
-        amountInput.value = String(roundNumber(defaultAmount).toFixed(2));
-      }
-      if (commentInput && defaultComment != null) {
-        commentInput.value = defaultComment;
-      }
       modal.classList.add('open');
       renderEarningsEntries();
     }
@@ -1775,7 +1766,6 @@ async function fetchClients() {
       throw new Error(data.error || 'Ошибка загрузки клиентов');
     }
     clientEntries = Array.isArray(data.entries) ? data.entries : [];
-    saveLocalClients(clientEntries);
   } catch (error) {
     console.error('fetchClients error:', error);
     clientEntries = loadLocalClients();
@@ -1806,12 +1796,12 @@ async function fetchClients() {
             ${entry.note ? `<div class="client-entry-meta">${escapeText(entry.note)}</div>` : ''}
           </div>
           <div class="client-entry-actions">
-            <button class="earnings-entry-delete" type="button" data-id="${entry.id}">Удалить</button>
+            <button class="client-entry-delete" type="button" data-id="${entry.id}">Удалить</button>
           </div>
         </div>
       `).join('');
 
-      container.querySelectorAll('.earnings-entry-delete').forEach((button) => {
+      container.querySelectorAll('.client-entry-delete').forEach((button) => {
         button.addEventListener('click', async () => {
           const id = button.dataset.id;
           try {
@@ -2045,28 +2035,6 @@ async function fetchClients() {
       return cartItems.reduce((sum, item) => sum + roundNumber(item.priceInCart) * Number(item.quantity || 0), 0);
     }
 
-    function getCartProfit() {
-      return cartItems.reduce((sum, item) => {
-        const profitPerItem = roundNumber(item.priceInCart - item.optPrice);
-        return sum + Math.max(0, profitPerItem) * Number(item.quantity || 0);
-      }, 0);
-    }
-
-    function getCartComment() {
-      return cartItems
-        .map((item) => {
-          const name = [item.brand, item.code, item.name].filter(Boolean).join(' ').trim();
-          return name || 'Товар';
-        })
-        .join('; ');
-    }
-
-    function openEarningsModalWithCart() {
-      const amount = getCartProfit();
-      const comment = getCartComment();
-      openEarningsModal(amount, comment);
-    }
-
     function addToCart(item) {
       const existing = cartItems.find((cartItem) => cartItem.id === item.id);
       if (existing) {
@@ -2141,7 +2109,6 @@ async function fetchClients() {
       els.cart.innerHTML = `
         <div class="cart-list">${html}</div>
         <div class="footer-note" style="margin-top: 14px; font-size: 15px;">Общая сумма: <strong>${money(total)}</strong></div>
-        <button id="processCartBtn" class="link-button primary" style="margin-top: 14px; width: 100%;">Провести</button>
         <button id="clearCartBtn" class="link-button secondary" style="margin-top: 14px;">Очистить корзину</button>
       `;
 
@@ -2168,13 +2135,6 @@ async function fetchClients() {
           removeFromCart(event.target.dataset.id);
         });
       });
-
-      const processBtn = document.getElementById('processCartBtn');
-      if (processBtn) {
-        processBtn.addEventListener('click', () => {
-          openEarningsModalWithCart();
-        });
-      }
 
       const clearBtn = document.getElementById('clearCartBtn');
       if (clearBtn) {
@@ -2751,7 +2711,6 @@ async function fetchClients() {
       content.innerHTML = `
         <div class="cart-list">${html}</div>
         <div class="footer-note" style="margin-top: 14px; font-size: 15px;">Общая сумма: <strong>${money(total)}</strong></div>
-        <button id="processModalCartBtn" class="link-button primary" style="margin-top: 14px; width: 100%;">Провести</button>
         <button id="clearModalCartBtn" class="link-button secondary" style="margin-top: 14px; width: 100%;">Очистить корзину</button>
       `;
 
@@ -2782,13 +2741,6 @@ async function fetchClients() {
           updateCartModal();
         });
       });
-
-      const processModalBtn = document.getElementById('processModalCartBtn');
-      if (processModalBtn) {
-        processModalBtn.addEventListener('click', () => {
-          openEarningsModalWithCart();
-        });
-      }
 
       const clearBtn = document.getElementById('clearModalCartBtn');
       if (clearBtn) {
