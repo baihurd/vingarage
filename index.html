@@ -1695,10 +1695,18 @@
       });
     }
 
-    async function openEarningsModal() {
+    async function openEarningsModal(defaultAmount, defaultComment) {
       const modal = document.getElementById('earningsModal');
       if (!modal) return;
       await loadEarningsData();
+      const amountInput = document.getElementById('earningsAmountInput');
+      const commentInput = document.getElementById('earningsCommentInput');
+      if (amountInput && defaultAmount != null && !Number.isNaN(Number(defaultAmount))) {
+        amountInput.value = String(roundNumber(defaultAmount).toFixed(2));
+      }
+      if (commentInput && defaultComment != null) {
+        commentInput.value = defaultComment;
+      }
       modal.classList.add('open');
       renderEarningsEntries();
     }
@@ -2037,6 +2045,28 @@ async function fetchClients() {
       return cartItems.reduce((sum, item) => sum + roundNumber(item.priceInCart) * Number(item.quantity || 0), 0);
     }
 
+    function getCartProfit() {
+      return cartItems.reduce((sum, item) => {
+        const profitPerItem = roundNumber(item.priceInCart - item.optPrice);
+        return sum + Math.max(0, profitPerItem) * Number(item.quantity || 0);
+      }, 0);
+    }
+
+    function getCartComment() {
+      return cartItems
+        .map((item) => {
+          const name = [item.brand, item.code, item.name].filter(Boolean).join(' ').trim();
+          return name || 'Товар';
+        })
+        .join('; ');
+    }
+
+    function openEarningsModalWithCart() {
+      const amount = getCartProfit();
+      const comment = getCartComment();
+      openEarningsModal(amount, comment);
+    }
+
     function addToCart(item) {
       const existing = cartItems.find((cartItem) => cartItem.id === item.id);
       if (existing) {
@@ -2111,6 +2141,7 @@ async function fetchClients() {
       els.cart.innerHTML = `
         <div class="cart-list">${html}</div>
         <div class="footer-note" style="margin-top: 14px; font-size: 15px;">Общая сумма: <strong>${money(total)}</strong></div>
+        <button id="processCartBtn" class="link-button primary" style="margin-top: 14px; width: 100%;">Провести</button>
         <button id="clearCartBtn" class="link-button secondary" style="margin-top: 14px;">Очистить корзину</button>
       `;
 
@@ -2137,6 +2168,13 @@ async function fetchClients() {
           removeFromCart(event.target.dataset.id);
         });
       });
+
+      const processBtn = document.getElementById('processCartBtn');
+      if (processBtn) {
+        processBtn.addEventListener('click', () => {
+          openEarningsModalWithCart();
+        });
+      }
 
       const clearBtn = document.getElementById('clearCartBtn');
       if (clearBtn) {
@@ -2713,6 +2751,7 @@ async function fetchClients() {
       content.innerHTML = `
         <div class="cart-list">${html}</div>
         <div class="footer-note" style="margin-top: 14px; font-size: 15px;">Общая сумма: <strong>${money(total)}</strong></div>
+        <button id="processModalCartBtn" class="link-button primary" style="margin-top: 14px; width: 100%;">Провести</button>
         <button id="clearModalCartBtn" class="link-button secondary" style="margin-top: 14px; width: 100%;">Очистить корзину</button>
       `;
 
@@ -2743,6 +2782,13 @@ async function fetchClients() {
           updateCartModal();
         });
       });
+
+      const processModalBtn = document.getElementById('processModalCartBtn');
+      if (processModalBtn) {
+        processModalBtn.addEventListener('click', () => {
+          openEarningsModalWithCart();
+        });
+      }
 
       const clearBtn = document.getElementById('clearModalCartBtn');
       if (clearBtn) {
