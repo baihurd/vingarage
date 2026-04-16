@@ -2216,7 +2216,9 @@ async function fetchClients() {
     }
 
     function formatWarehouseInfo(item) {
-      const info = String(item.warehouse || item.stockText || '').trim();
+      const warehouse = String(item.warehouse || '').trim();
+      const stockText = String(item.stockText || '').trim();
+      const info = warehouse && stockText ? `${warehouse} ${stockText}` : warehouse || stockText;
       if (!info) return '—';
       if (getNormalizedAvailability(item) === 'our_stock') {
         return info
@@ -2253,12 +2255,13 @@ async function fetchClients() {
       return filtered;
     }
 
-    function updateToggle(toggleEl, selectedList, emptyLabel, multiLabel) {
+    function updateToggle(toggleEl, selectedList, emptyLabel, multiLabel, labelMap = null) {
       const total = selectedList.length;
       if (total === 0) {
         toggleEl.textContent = emptyLabel;
       } else if (total === 1) {
-        toggleEl.textContent = selectedList[0];
+        const value = selectedList[0];
+        toggleEl.textContent = labelMap && labelMap[value] ? labelMap[value] : value;
       } else {
         toggleEl.textContent = `${multiLabel}: ${total}`;
       }
@@ -2294,7 +2297,7 @@ async function fetchClients() {
             const idx = selectedList.indexOf(value);
             if (idx !== -1) selectedList.splice(idx, 1);
           }
-          updateToggle(toggleEl, selectedList, emptyLabel, multiLabel);
+          updateToggle(toggleEl, selectedList, emptyLabel, multiLabel, labelMap);
           renderResults(currentItems);
         });
       });
@@ -2329,15 +2332,22 @@ async function fetchClients() {
         valueGroups[cleaned].push(value);
       });
 
-      // Считаем минимальную цену по группе
+      const activeItems = items.filter(item =>
+        (selectedStatuses.length === 0 || selectedStatuses.includes(getNormalizedAvailability(item))) &&
+        (selectedMakes.length === 0 || selectedMakes.includes(getItemMake(item)))
+      );
+      // Считаем минимальную цену и количество по группе
       const groupPrices = {};
+      const groupCounts = {};
       Object.keys(valueGroups).forEach(cleanedName => {
         const groupValues = valueGroups[cleanedName];
         const allGroupItems = groupValues.flatMap(s => items.filter(item => item[valueKey] === s));
+        const activeGroupItems = groupValues.flatMap(s => activeItems.filter(item => item[valueKey] === s));
         const minPrice = allGroupItems.length > 0 
           ? Math.min(...allGroupItems.map(item => item.priceOpt || item.priceRetail || 999999))
           : 0;
         groupPrices[cleanedName] = minPrice;
+        groupCounts[cleanedName] = activeGroupItems.length;
       });
 
       // Сортируем по имени
@@ -2348,7 +2358,7 @@ async function fetchClients() {
         <label style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 6px 0;">
           <div style="display: flex; align-items: center; gap: 6px;">
             <input type="checkbox" value="${cleanedName}"${selectedList.includes(cleanedName) ? ' checked' : ''} />
-            <span style="font-size: 14px;">${cleanedName}</span>
+            <span style="font-size: 14px;">${cleanedName} (${groupCounts[cleanedName]})</span>
           </div>
           <span style="font-size: 12px; color: var(--muted); white-space: nowrap;">от ${money(groupPrices[cleanedName])}</span>
         </label>
@@ -2514,7 +2524,7 @@ async function fetchClients() {
             <div class="meta">
               <span class="chip ${av.cls}">${av.text}</span>
               <span class="chip">${item.supplier || '—'}</span>
-              <span class="chip">${item.warehouse || 'Склад не указан'}</span>
+              <span class="chip">${formatWarehouseInfo(item)}</span>
               ${item.mikadoCode ? `<span class="chip">${item.mikadoCode}</span>` : ''}
             </div>
             <div class="toolbar">
@@ -2580,7 +2590,7 @@ async function fetchClients() {
           <div class="kv">
             <div>Опт</div><div>${money(item.priceOpt || item.priceRetail)}</div>
             <div>Статус</div><div><span class="chip ${av.cls}">${av.text}</span></div>
-            <div>Срок / склад</div><div>${item.stockText || item.warehouse || '—'}</div>
+            <div>Срок / склад</div><div>${formatWarehouseInfo(item)}</div>
           </div>
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
