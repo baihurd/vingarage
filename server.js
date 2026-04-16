@@ -7,9 +7,8 @@ import { fileURLToPath } from "url";
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// SQLite database
-const DATA_DIR = process.env.NODE_ENV === 'production' ? '/tmp' : __dirname;
-const DB_PATH = path.join(DATA_DIR, 'vingarage.db');
+// SQLite database - use project directory for persistent storage on Render
+const DB_PATH = path.join(__dirname, 'vingarage.db');
 const db = new Database(DB_PATH);
 
 // Enable foreign keys
