@@ -143,8 +143,16 @@ function parseCodeSearchXml(xml) {
     const onStocksXml = getTagValue(row, "OnStocks");
     const stockLines = parseOnStocks(onStocksXml);
     const hasStockLines = stockLines.some(line => line.stockQty > 0);
+    const sortedStockLines = stockLines.slice().sort((a, b) => {
+      const delayA = Number(a.deliveryDelay) || 0;
+      const delayB = Number(b.deliveryDelay) || 0;
+      if (delayA !== delayB) return delayA - delayB;
+      return b.stockQty - a.stockQty;
+    });
+    const visibleStockLines = sortedStockLines.slice(0, 5);
+    const hiddenStockCount = sortedStockLines.length - visibleStockLines.length;
     const stockText = hasStockLines
-      ? stockLines.map(line => `${line.stokName} ${line.stockQty}шт${line.deliveryDelay ? ` (${line.deliveryDelay} дн.)` : ``}`).join(', ')
+      ? visibleStockLines.map(line => `${line.stokName} ${line.stockQty}шт${line.deliveryDelay ? ` (${line.deliveryDelay} дн.)` : ``}`).join(', ') + (hiddenStockCount > 0 ? `, и ещё ${hiddenStockCount}` : '')
       : srock || onMyStock || "";
     const warehouse = hasStockLines
       ? ''
