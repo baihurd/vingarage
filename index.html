@@ -2179,10 +2179,10 @@ async function fetchClients() {
 
       const normalizedResults = sources.map(source => normalizeAvailability(source));
 
-      // Приоритет: our_stock > partner_stock > delayed > container > unavailable
+      // Приоритет: our_stock > delayed > partner_stock > container > unavailable
       if (normalizedResults.includes('our_stock')) return 'our_stock';
-      if (normalizedResults.includes('partner_stock')) return 'partner_stock';
       if (normalizedResults.includes('delayed')) return 'delayed';
+      if (normalizedResults.includes('partner_stock')) return 'partner_stock';
       if (normalizedResults.includes('container')) return 'container';
       return 'unavailable';
     }
@@ -2213,17 +2213,16 @@ async function fetchClients() {
     function formatWarehouseInfo(item) {
       const warehouse = String(item.warehouse || '').trim();
       const stockText = String(item.stockText || '').trim();
-      const info = warehouse && stockText ? `${warehouse} ${stockText}` : warehouse || stockText;
+      const fallbackText = String(getAvailabilityText(item) || '').trim();
+      const info = warehouse && stockText ? `${warehouse} ${stockText}` : warehouse || stockText || fallbackText;
       if (!info) return '—';
-      if (getNormalizedAvailability(item) === 'our_stock') {
-        return info
-          .split(/\r?\n/)
-          .map(line => line.trim())
-          .filter(Boolean)
-          .map(line => `<div>${line}</div>`)
-          .join('');
-      }
-      return info;
+      const source = info || fallbackText;
+      return source
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map(line => `<div>${line}</div>`)
+        .join('');
     }
 
     function bindDetailAddButton() {
@@ -2393,7 +2392,7 @@ async function fetchClients() {
     }
 
     function getDeliveryDays(item) {
-      const raw = String(item.stockText || item.warehouse || '').toLowerCase();
+      const raw = getAvailabilityText(item).toLowerCase();
       const daysMatch = raw.match(/(\d+)\s*дн/);
       if (daysMatch) {
         return Number(daysMatch[1]);
