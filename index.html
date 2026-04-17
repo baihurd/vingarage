@@ -251,6 +251,33 @@
       flex-wrap: wrap;
     }
 
+    .market-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .market-button {
+      width: 56px;
+      height: 56px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: #11151d;
+      color: var(--text);
+      font-size: 22px;
+      cursor: pointer;
+      transition: transform .15s ease, background .2s ease, border-color .2s ease;
+    }
+
+    .market-button:hover {
+      background: rgba(255, 149, 0, 0.18);
+      border-color: rgba(255, 149, 0, 0.6);
+      transform: translateY(-1px);
+    }
+
     .detail-panel {
       position: fixed;
       top: 0;
@@ -1408,8 +1435,16 @@
       </div>
       <div class="grid search-grid">
         <div>
-          <label for="code">Код детали</label>
-          <input id="code" placeholder="Например, 0265008135 или MAG3482" />
+          <label for="code">Бренд + артикул</label>
+          <input id="code" placeholder="Например, MASTERKIT 77bo079" />
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <div class="market-buttons">
+            <button type="button" class="market-button" data-market="yandex" title="Поиск в Яндекс.Маркете">🔎</button>
+            <button type="button" class="market-button" data-market="avito" title="Поиск в Avito">🅰</button>
+            <button type="button" class="market-button" data-market="ozon" title="Поиск в Ozon">📦</button>
+            <button type="button" class="market-button" data-market="wb" title="Поиск на Wildberries">🛍️</button>
+          </div>
         </div>
         <div class="checkbox-dropdown-wrapper" id="statusWrapper" style="display:none;">
           <label>Статус</label>
@@ -2247,56 +2282,7 @@ async function fetchClients() {
       }
     }
 
-    function bindPriceAnalysisButton() {
-      const priceBtn = document.getElementById('priceAnalysisBtn');
-      if (priceBtn) {
-        priceBtn.addEventListener('click', async () => {
-          const selectedItem = currentItems.find(item => item.id === els.detail.dataset.selectedId);
-          if (!selectedItem) return;
 
-          const vendor = selectedItem.brand || selectedItem.supplier || '';
-          const partName = [vendor, selectedItem.code, selectedItem.name]
-            .filter(Boolean)
-            .join(' ');
-          const query = partName;
-          priceBtn.disabled = true;
-          priceBtn.textContent = 'Анализирую...';
-
-          try {
-            const currentPrice = Number(selectedItem.priceOpt || selectedItem.priceRetail || 0);
-            const response = await fetch('/api/price-analysis', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ partName: query, currentPrice })
-            });
-
-            const data = await response.json();
-            if (!data.ok) {
-              throw new Error(data.error || 'Ошибка анализа');
-            }
-
-            const result = `
-Анализ цены для "${data.partName}":
-
-Средняя цена: ${money(data.averagePrice)}
-Мин. цена: ${money(data.minPrice)}
-Макс. цена: ${money(data.maxPrice)}
-
-Источники:
-${data.sources.map(s => `${s.name}: ${money(s.price)}`).join('\n')}
-
-${data.note}
-            `;
-            alert(result);
-          } catch (error) {
-            alert('Ошибка анализа цены: ' + error.message);
-          } finally {
-            priceBtn.disabled = false;
-            priceBtn.textContent = 'Анализ цены';
-          }
-        });
-      }
-    }
 
     function filterItems(items) {
       let filtered = items;
@@ -2652,7 +2638,6 @@ ${data.note}
           </div>
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
-            <button class="link-button" type="button" id="priceAnalysisBtn">Анализ цены</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
           </div>
         </div>
@@ -2663,7 +2648,6 @@ ${data.note}
       `;
       els.detail.dataset.selectedId = item.id;
       bindDetailAddButton();
-      bindPriceAnalysisButton();
     }
 
     async function search() {
@@ -2738,6 +2722,28 @@ ${data.note}
     });
 
     updateSortButtons();
+
+    // Обработчик для поиска по маркетплейсам
+    const marketLinks = {
+      yandex: (query) => `https://market.yandex.ru/search?text=${encodeURIComponent(query)}`,
+      avito: (query) => `https://www.avito.ru/all?q=${encodeURIComponent(query)}`,
+      ozon: (query) => `https://ozon.ru/search/?text=${encodeURIComponent(query)}`,
+      wb: (query) => `https://www.wildberries.ru/catalog/0/search.aspx?search=${encodeURIComponent(query)}`
+    };
+
+    document.querySelectorAll('.market-button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const query = els.code.value.trim();
+        if (!query) {
+          alert('Введи бренд + артикул');
+          return;
+        }
+        const market = btn.dataset.market;
+        const url = marketLinks[market]?.(query);
+        if (url) window.open(url, '_blank');
+      });
+    });
 
     loadCart();
     renderCart();
