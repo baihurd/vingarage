@@ -250,6 +250,14 @@
       font-size: 12px;
     }
 
+    .yandex-album {
+      width: 100%;
+      min-height: 360px;
+      border: 1px solid rgba(255,255,255,.08);
+      border-radius: 14px;
+      background: #0f131a;
+    }
+
     .toolbar {
       display: flex;
       gap: 10px;
@@ -2255,12 +2263,6 @@ async function fetchClients() {
       return `https://yandex.ru/images/search?text=${encodeURIComponent(query + ' автозапчасть')}`;
     }
 
-    function getBingImageSearchLink(item) {
-      const query = buildImageSearchQuery(item);
-      if (!query) return 'https://www.bing.com/images';
-      return `https://www.bing.com/images/search?q=${encodeURIComponent(query + ' car part')}`;
-    }
-
     function getInternetImageCandidates(item) {
       const query = buildImageSearchQuery(item);
       const fallbackQuery = query || 'auto part';
@@ -2691,7 +2693,6 @@ async function fetchClients() {
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
       const imageSearchLink = getImageSearchLink(item);
-      const bingImageSearchLink = getBingImageSearchLink(item);
       els.detail.className = '';
       els.detail.innerHTML = `
         <div class="detail-image-block">
@@ -2717,9 +2718,12 @@ async function fetchClients() {
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
-            <a class="link-button" href="${imageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Яндекс)</a>
-            <a class="link-button" href="${bingImageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Bing)</a>
           </div>
+        </div>
+        <div class="detail-block">
+          <h4>Фотоальбом (Яндекс Картинки)</h4>
+          <iframe class="yandex-album" src="${imageSearchLink}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+          <div class="detail-image-note">Если альбом не отобразился, Яндекс может блокировать встраивание. Тогда открой карточку в новом окне.</div>
         </div>
         <div class="detail-block">
           <h4>Комментарий</h4>
@@ -2910,7 +2914,6 @@ async function fetchClients() {
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
       const imageSearchLink = getImageSearchLink(item);
-      const bingImageSearchLink = getBingImageSearchLink(item);
       
       let html = `
         <div class="detail-image-block">
@@ -2936,9 +2939,11 @@ async function fetchClients() {
           <div class="toolbar">
             <button id="panelAddCartBtn" class="link-button secondary" type="button">Добавить в корзину</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
-            <a class="link-button" href="${imageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Яндекс)</a>
-            <a class="link-button" href="${bingImageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Bing)</a>
           </div>
+        </div>
+        <div class="detail-block">
+          <h4>Фотоальбом (Яндекс Картинки)</h4>
+          <iframe class="yandex-album" src="${imageSearchLink}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
         </div>
         <div class="detail-block">
           <h4>Комментарий</h4>
