@@ -235,6 +235,35 @@
       flex-wrap: wrap;
     }
 
+    .detail-card .toolbar,
+    .detail-panel .toolbar {
+      gap: 0;
+      margin-top: 14px;
+    }
+
+    .detail-card .toolbar > .link-button,
+    .detail-card .toolbar > button.link-button,
+    .detail-panel .toolbar > .link-button,
+    .detail-panel .toolbar > button.link-button {
+      margin-top: 0;
+      width: 184px;
+      min-width: 0;
+      height: 42px;
+      font-size: 14px;
+      gap: 0;
+      overflow: visible;
+      text-align: center;
+      position: static;
+      border-radius: 14px;
+      border: 0;
+      border-image: none;
+      box-shadow: none;
+      background: #000;
+      background-image: none;
+      background-color: #000;
+      color: #fff;
+    }
+
     .market-buttons {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -490,13 +519,24 @@
 
     .sort-button {
       min-width: auto !important;
-      padding: 8px 12px;
-      font-size: 13px;
+      padding: 10px 0;
+      font-size: 14px;
+      border-radius: 10px;
+      background: rgba(76, 64, 109, 1);
+      background-color: rgba(76, 64, 109, 1);
+      border: 1px solid rgba(242, 237, 232, 0.9);
+      border-image: none;
+      color: #fff;
+      box-sizing: border-box;
+      margin-top: 14px;
     }
 
     .sort-button.active {
-      border-color: rgba(255, 138, 29, 0.75);
-      background: rgba(255, 138, 29, 0.15);
+      background: rgba(64, 30, 82, 0.98);
+      background-color: rgba(64, 30, 82, 0.98);
+      border: 0;
+      border-image: none;
+      color: #fff;
     }
 
     .clients-form-grid {
@@ -719,11 +759,7 @@
       flex-wrap: wrap;
     }
 
-    .sort-button {
-      min-width: auto !important;
-      padding: 10px 14px;
-      font-size: 14px;
-    }
+    /* Keep one canonical .sort-button style (defined above). */
 
     .cart-fab {
       position: fixed;
@@ -2642,6 +2678,7 @@ async function fetchClients() {
             <div>Название</div><div>${item.name || '—'}</div>
           </div>
           ${marketButtonsHtml()}
+          ${mikadoLink ? `<div class="toolbar"><a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a></div>` : ''}
         </div>
         <div class="detail-block">
           <h4>Цена и наличие</h4>
@@ -2652,7 +2689,6 @@ async function fetchClients() {
           </div>
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
-            ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
           </div>
         </div>
         <div class="detail-block">
@@ -2832,6 +2868,7 @@ async function fetchClients() {
             <div>Название</div><div>${item.name || '—'}</div>
           </div>
           ${marketButtonsHtml()}
+          ${mikadoLink ? `<div class="toolbar"><a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a></div>` : ''}
         </div>
         <div class="detail-block">
           <h4>Цена и наличие</h4>
@@ -2842,7 +2879,6 @@ async function fetchClients() {
           </div>
           <div class="toolbar">
             <button id="panelAddCartBtn" class="link-button secondary" type="button">Добавить в корзину</button>
-            ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
           </div>
         </div>
         <div class="detail-block">
