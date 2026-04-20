@@ -277,29 +277,6 @@ function extractYandexImagesFromHtml(html, limit = 5) {
   return results;
 }
 
-function extractGenericImagesFromHtml(html, limit = 5) {
-  const results = [];
-  const seen = new Set();
-  const imageRegex = /https?:\/\/[^"'\\\s>]+(?:\.jpg|\.jpeg|\.png|\.webp)(?:\?[^"'\\\s>]*)?/gi;
-  const candidates = html.match(imageRegex) || [];
-
-  for (const raw of candidates) {
-    const url = normalizeImageUrl(raw);
-    if (!url || seen.has(url)) continue;
-    // Убираем очевидно служебные иконки/логотипы
-    if (/favicon|logo|sprite|counter|yastatic|clck|mc\.yandex/i.test(url)) continue;
-    seen.add(url);
-    results.push({
-      thumbnail: url,
-      original: url,
-      source: "yandex"
-    });
-    if (results.length >= limit) break;
-  }
-
-  return results;
-}
-
 // ============= API ENDPOINTS =============
 
 // Модели
@@ -435,23 +412,6 @@ app.get("/api/images/yandex", async (req, res) => {
         if (blockHtml) {
           images = extractYandexImagesFromHtml(blockHtml, 5);
         }
-      }
-    }
-
-    // Фолбэк 2: обычный поиск Яндекса, откуда тоже можно вытащить картинки.
-    if (images.length === 0) {
-      const webSearchUrl = new URL("https://yandex.ru/search/");
-      webSearchUrl.searchParams.set("text", q);
-      const webRes = await fetch(webSearchUrl.toString(), {
-        method: "GET",
-        headers: {
-          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-          "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
-        }
-      });
-      if (webRes.ok) {
-        const webHtml = await webRes.text();
-        images = extractGenericImagesFromHtml(webHtml, 5);
       }
     }
 

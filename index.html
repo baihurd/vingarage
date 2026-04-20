@@ -2332,15 +2332,9 @@ async function fetchClients() {
       const brand = String(item.brand || '').trim();
       const code = String(item.code || '').trim();
       const mikadoCode = String(item.mikadoCode || '').trim();
-
-      const queries = [
-        [brand, code].filter(Boolean).join(' ').trim(),
-        [brand, mikadoCode].filter(Boolean).join(' ').trim(),
-        mikadoCode,
-        code,
-        [brand, code, 'автозапчасть'].filter(Boolean).join(' ').trim()
-      ].filter(Boolean);
-
+      const primary = [brand, code].filter(Boolean).join(' ').trim();
+      const reserve = [brand, mikadoCode].filter(Boolean).join(' ').trim();
+      const queries = [primary, reserve].filter(Boolean);
       return [...new Set(queries)];
     }
 
@@ -2348,19 +2342,22 @@ async function fetchClients() {
 
     async function fetchYandexImages(item) {
       const queries = buildImageSearchQueries(item);
-      if (!queries.length) return [];
+      if (!queries.length) return { images: [], usedQuery: '' };
 
       const cacheKey = queries.join(' || ');
       if (yandexImageCache.has(cacheKey)) return yandexImageCache.get(cacheKey);
 
       const seen = new Set();
       const combined = [];
+      let usedQuery = queries[0] || '';
 
       for (const query of queries) {
         const response = await fetch(`/api/images/yandex?q=${encodeURIComponent(query)}`);
         if (!response.ok) continue;
         const data = await response.json();
         const images = Array.isArray(data.images) ? data.images : [];
+        if (!images.length) continue;
+        if (!combined.length) usedQuery = query;
         for (const img of images) {
           const key = img.thumbnail || img.original;
           if (!key || seen.has(key)) continue;
@@ -2371,8 +2368,9 @@ async function fetchClients() {
         if (combined.length >= 5) break;
       }
 
-      yandexImageCache.set(cacheKey, combined.slice(0, 5));
-      return combined.slice(0, 5);
+      const payload = { images: combined.slice(0, 5), usedQuery };
+      yandexImageCache.set(cacheKey, payload);
+      return payload;
     }
 
     function bindYandexGallery(container, item) {
@@ -2386,6 +2384,8 @@ async function fetchClients() {
       const thumbsEl = gallery.querySelector('.js-yandex-gallery-thumbs');
       let images = [];
       let index = 0;
+      const queries = buildImageSearchQueries(item);
+      const primaryQuery = queries[0] || '';
 
       const render = () => {
         if (!imageEl || !noteEl || !prevBtn || !nextBtn || !thumbsEl) return;
@@ -2394,7 +2394,9 @@ async function fetchClients() {
           prevBtn.disabled = true;
           nextBtn.disabled = true;
           thumbsEl.innerHTML = '';
-          noteEl.textContent = 'Яндекс не нашел изображения для этой детали.';
+          noteEl.textContent = primaryQuery
+            ? `Яндекс не нашел фото по запросу: ${primaryQuery}`
+            : 'Не указан бренд/код для поиска фото.';
           return;
         }
 
@@ -2402,7 +2404,7 @@ async function fetchClients() {
         imageEl.style.display = 'block';
         imageEl.src = current.thumbnail || current.original || '';
         imageEl.alt = `${item.brand || ''} ${item.code || ''}`.trim() || 'Фото детали';
-        noteEl.textContent = `Фото ${index + 1} из ${images.length} (Яндекс)`;
+        noteEl.textContent = `Фото ${index + 1} из ${images.length} (Яндекс, запрос: ${primaryQuery || 'бренд+код'})`;
         prevBtn.disabled = images.length <= 1;
         nextBtn.disabled = images.length <= 1;
 
@@ -2437,8 +2439,8 @@ async function fetchClients() {
 
       if (noteEl) noteEl.textContent = 'Ищем 5 фото в Яндекс...';
       fetchYandexImages(item)
-        .then((list) => {
-          images = list;
+        .then((payload) => {
+          images = payload.images || [];
           index = 0;
           render();
         })
