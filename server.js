@@ -257,6 +257,23 @@ function extractYandexImagesFromHtml(html, limit = 5) {
     });
   }
 
+  // Резервный способ: иногда карточки нетипичные, но есть прямые thumb URL.
+  if (results.length < limit) {
+    const thumbRegex = /https?:\/\/[^"'\\\s>]*avatars\.mds\.yandex\.net\/i\?id=[^"'\\\s>]+/gi;
+    const matches = html.match(thumbRegex) || [];
+    for (const raw of matches) {
+      const thumbUrl = normalizeImageUrl(raw);
+      if (!thumbUrl || seen.has(thumbUrl)) continue;
+      seen.add(thumbUrl);
+      results.push({
+        thumbnail: thumbUrl,
+        original: thumbUrl,
+        source: "yandex"
+      });
+      if (results.length >= limit) break;
+    }
+  }
+
   return results;
 }
 

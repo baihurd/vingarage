@@ -278,13 +278,13 @@
       position: absolute;
       top: 50%;
       transform: translateY(-50%);
-      width: 34px;
-      height: 34px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
       border: 1px solid rgba(255,255,255,.2);
       background: rgba(10, 12, 18, .6);
       color: #fff;
-      font-size: 20px;
+      font-size: 18px;
       line-height: 1;
       cursor: pointer;
       z-index: 2;
@@ -303,26 +303,38 @@
       cursor: not-allowed;
     }
 
-    .yandex-gallery-dots {
+    .yandex-gallery-thumbs {
       display: flex;
-      gap: 6px;
-      justify-content: center;
+      gap: 8px;
+      justify-content: flex-start;
       margin-top: 10px;
-      flex-wrap: wrap;
+      overflow-x: auto;
+      padding-bottom: 4px;
     }
 
-    .yandex-gallery-dot {
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      border: 0;
-      background: rgba(255,255,255,.28);
+    .yandex-thumb {
+      all: unset;
+      width: 58px;
+      height: 58px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.18);
+      overflow: hidden;
+      flex: 0 0 auto;
       cursor: pointer;
-      padding: 0;
+      display: block;
     }
 
-    .yandex-gallery-dot.active {
-      background: #ff9500;
+    .yandex-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      background: #101521;
+    }
+
+    .yandex-thumb.active {
+      border-color: #ff9500;
+      box-shadow: 0 0 0 2px rgba(255, 149, 0, .35);
     }
 
     .toolbar {
@@ -2316,23 +2328,50 @@ async function fetchClients() {
       return item.carMake || item.make || item.autoMake || item.makeName || '';
     }
 
-    function buildImageSearchQuery(item) {
-      return [item.brand, item.code, item.name].filter(Boolean).join(' ').trim();
+    function buildImageSearchQueries(item) {
+      const brand = String(item.brand || '').trim();
+      const code = String(item.code || '').trim();
+      const name = String(item.name || '').trim().replace(/[^\p{L}\p{N}\s\-]/gu, ' ').replace(/\s+/g, ' ').trim();
+
+      const queries = [
+        [brand, code].filter(Boolean).join(' ').trim(),
+        code,
+        [brand, code, 'автозапчасть'].filter(Boolean).join(' ').trim(),
+        [brand, code, name].filter(Boolean).join(' ').trim()
+      ].filter(Boolean);
+
+      return [...new Set(queries)];
     }
 
     const yandexImageCache = new Map();
 
     async function fetchYandexImages(item) {
-      const query = buildImageSearchQuery(item);
-      if (!query) return [];
-      if (yandexImageCache.has(query)) return yandexImageCache.get(query);
+      const queries = buildImageSearchQueries(item);
+      if (!queries.length) return [];
 
-      const response = await fetch(`/api/images/yandex?q=${encodeURIComponent(query)}`);
-      if (!response.ok) throw new Error('Не удалось загрузить фото из Яндекса');
-      const data = await response.json();
-      const images = Array.isArray(data.images) ? data.images.slice(0, 5) : [];
-      yandexImageCache.set(query, images);
-      return images;
+      const cacheKey = queries.join(' || ');
+      if (yandexImageCache.has(cacheKey)) return yandexImageCache.get(cacheKey);
+
+      const seen = new Set();
+      const combined = [];
+
+      for (const query of queries) {
+        const response = await fetch(`/api/images/yandex?q=${encodeURIComponent(query)}`);
+        if (!response.ok) continue;
+        const data = await response.json();
+        const images = Array.isArray(data.images) ? data.images : [];
+        for (const img of images) {
+          const key = img.thumbnail || img.original;
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          combined.push(img);
+          if (combined.length >= 5) break;
+        }
+        if (combined.length >= 5) break;
+      }
+
+      yandexImageCache.set(cacheKey, combined.slice(0, 5));
+      return combined.slice(0, 5);
     }
 
     function bindYandexGallery(container, item) {
@@ -2343,17 +2382,17 @@ async function fetchClients() {
       const noteEl = gallery.querySelector('.js-yandex-gallery-note');
       const prevBtn = gallery.querySelector('.js-yandex-gallery-prev');
       const nextBtn = gallery.querySelector('.js-yandex-gallery-next');
-      const dotsEl = gallery.querySelector('.js-yandex-gallery-dots');
+      const thumbsEl = gallery.querySelector('.js-yandex-gallery-thumbs');
       let images = [];
       let index = 0;
 
       const render = () => {
-        if (!imageEl || !noteEl || !prevBtn || !nextBtn || !dotsEl) return;
+        if (!imageEl || !noteEl || !prevBtn || !nextBtn || !thumbsEl) return;
         if (!images.length) {
           imageEl.style.display = 'none';
           prevBtn.disabled = true;
           nextBtn.disabled = true;
-          dotsEl.innerHTML = '';
+          thumbsEl.innerHTML = '';
           noteEl.textContent = 'Яндекс не нашел изображения для этой детали.';
           return;
         }
@@ -2366,13 +2405,15 @@ async function fetchClients() {
         prevBtn.disabled = images.length <= 1;
         nextBtn.disabled = images.length <= 1;
 
-        dotsEl.innerHTML = images.map((_, dotIndex) =>
-          `<button class="yandex-gallery-dot ${dotIndex === index ? 'active' : ''}" data-index="${dotIndex}" type="button" aria-label="Фото ${dotIndex + 1}"></button>`
+        thumbsEl.innerHTML = images.map((img, thumbIndex) =>
+          `<button class="yandex-thumb ${thumbIndex === index ? 'active' : ''}" data-index="${thumbIndex}" type="button" aria-label="Миниатюра ${thumbIndex + 1}">
+            <img src="${img.thumbnail || img.original || ''}" alt="Миниатюра ${thumbIndex + 1}" loading="lazy" />
+          </button>`
         ).join('');
 
-        Array.from(dotsEl.querySelectorAll('.yandex-gallery-dot')).forEach((dotBtn) => {
-          dotBtn.addEventListener('click', () => {
-            index = Number(dotBtn.dataset.index) || 0;
+        Array.from(thumbsEl.querySelectorAll('.yandex-thumb')).forEach((thumbBtn) => {
+          thumbBtn.addEventListener('click', () => {
+            index = Number(thumbBtn.dataset.index) || 0;
             render();
           });
         });
@@ -2792,7 +2833,7 @@ async function fetchClients() {
               <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
               <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
             </div>
-            <div class="yandex-gallery-dots js-yandex-gallery-dots"></div>
+            <div class="yandex-gallery-thumbs js-yandex-gallery-thumbs"></div>
             <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
           </div>
         </div>
@@ -3015,7 +3056,7 @@ async function fetchClients() {
               <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
               <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
             </div>
-            <div class="yandex-gallery-dots js-yandex-gallery-dots"></div>
+            <div class="yandex-gallery-thumbs js-yandex-gallery-thumbs"></div>
             <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
           </div>
         </div>
