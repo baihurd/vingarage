@@ -236,24 +236,28 @@
     }
 
     .market-buttons {
-      display: flex;
-      gap: 10px;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
     }
 
     .market-button {
-      width: 56px;
-      height: 56px;
-      display: inline-flex;
+      width: 100%;
+      min-height: 38px;
+      display: flex;
       align-items: center;
       justify-content: center;
-      border-radius: 16px;
+      border-radius: 12px;
       border: 1px solid var(--line);
       background: #11151d;
       color: var(--text);
-      font-size: 22px;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.1;
       cursor: pointer;
       transition: transform .15s ease, background .2s ease, border-color .2s ease;
+      padding: 8px 10px;
     }
 
     .market-button:hover {
@@ -803,8 +807,6 @@
     }
 
     .cart-modal-close:hover {
-      color: var(--accent);
-    }
       color: var(--accent);
     }
 
@@ -2233,10 +2235,10 @@ async function fetchClients() {
     function marketButtonsHtml() {
       return `
         <div class="market-buttons">
-          <button type="button" class="market-button js-detail-market-button" data-market="yandex" title="Поиск в Яндекс.Маркете">🔎</button>
-          <button type="button" class="market-button js-detail-market-button" data-market="avito" title="Поиск в Avito">🅰</button>
-          <button type="button" class="market-button js-detail-market-button" data-market="ozon" title="Поиск в Ozon">📦</button>
-          <button type="button" class="market-button js-detail-market-button" data-market="wb" title="Поиск на Wildberries">🛍️</button>
+          <button type="button" class="market-button js-detail-market-button" data-market="avito" title="Поиск в Avito">Авито</button>
+          <button type="button" class="market-button js-detail-market-button" data-market="wb" title="Поиск на Wildberries">ВБ</button>
+          <button type="button" class="market-button js-detail-market-button" data-market="ozon" title="Поиск в Ozon">Озон</button>
+          <button type="button" class="market-button js-detail-market-button" data-market="yandex" title="Поиск в Яндекс.Маркете">Я.маркет</button>
         </div>
       `;
     }
