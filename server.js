@@ -208,6 +208,58 @@ function parseCodeSearchXml(xml) {
   return items;
 }
 
+function decodeHtmlEntities(text = "") {
+  return String(text)
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#x27;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>');
+}
+
+function normalizeImageUrl(url = "") {
+  if (!url) return "";
+  if (url.startsWith("//")) return `https:${url}`;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return "";
+}
+
+function extractYandexImagesFromHtml(html, limit = 5) {
+  const results = [];
+  const seen = new Set();
+  const itemRegex = /serp-item[^>]*data-bem=(['"])([\s\S]*?)\1/gi;
+  let match;
+
+  while ((match = itemRegex.exec(html)) && results.length < limit) {
+    const rawBem = decodeHtmlEntities(match[2]);
+    let parsed;
+
+    try {
+      parsed = JSON.parse(rawBem);
+    } catch {
+      continue;
+    }
+
+    const item = parsed["serp-item"];
+    if (!item) continue;
+
+    const thumbUrl = normalizeImageUrl(item.thumb && item.thumb.url);
+    const originalUrl = normalizeImageUrl(item.img_href) || thumbUrl;
+
+    if (!thumbUrl || seen.has(thumbUrl)) continue;
+    seen.add(thumbUrl);
+
+    results.push({
+      thumbnail: thumbUrl,
+      original: originalUrl,
+      source: "yandex"
+    });
+  }
+
+  return results;
+}
+
 // ============= API ENDPOINTS =============
 
 // Модели
@@ -288,6 +340,68 @@ app.post("/api/mikado/search", async (req, res) => {
   } catch (error) {
     console.error(error);
     return res.status(500).json({ ok: false, error: error.message || "Ошибка прокси" });
+  }
+});
+
+// Поиск изображений в Яндекс.Картинках (первые 5)
+app.get("/api/images/yandex", async (req, res) => {
+  try {
+    const q = String(req.query.q || "").trim();
+    if (!q) {
+      return res.status(400).json({ ok: false, error: "Query required" });
+    }
+
+    const searchUrl = new URL("https://yandex.ru/images/search");
+    searchUrl.searchParams.set("text", q);
+    searchUrl.searchParams.set("from", "tabbar");
+
+    const response = await fetch(searchUrl.toString(), {
+      method: "GET",
+      headers: {
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+        "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+      }
+    });
+
+    if (!response.ok) {
+      return res.status(response.status).json({ ok: false, error: `Yandex HTTP ${response.status}` });
+    }
+
+    const html = await response.text();
+    let images = extractYandexImagesFromHtml(html, 5);
+
+    // Фолбэк: иногда HTML приходит без карточек, пробуем JSON-блок выдачи
+    if (images.length === 0) {
+      const apiUrl = new URL("https://yandex.ru/images/search");
+      apiUrl.searchParams.set("text", q);
+      apiUrl.searchParams.set("format", "json");
+      apiUrl.searchParams.set("request", JSON.stringify({
+        blocks: [{ block: "serp-list_infinite_yes", params: { pageNum: 0 } }]
+      }));
+
+      const jsonResponse = await fetch(apiUrl.toString(), {
+        method: "GET",
+        headers: {
+          "x-requested-with": "XMLHttpRequest",
+          "accept-language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7"
+        }
+      });
+
+      if (jsonResponse.ok) {
+        const payload = await jsonResponse.json();
+        const blockHtml = payload && payload.blocks && payload.blocks[0] && payload.blocks[0].html
+          ? String(payload.blocks[0].html)
+          : "";
+        if (blockHtml) {
+          images = extractYandexImagesFromHtml(blockHtml, 5);
+        }
+      }
+    }
+
+    return res.json({ ok: true, query: q, images: images.slice(0, 5) });
+  } catch (error) {
+    console.error("Yandex image search error:", error);
+    return res.status(500).json({ ok: false, error: error.message || "Yandex image search failed" });
   }
 });
 

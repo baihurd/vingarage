@@ -250,12 +250,79 @@
       font-size: 12px;
     }
 
-    .yandex-album {
+    .yandex-gallery {
       width: 100%;
-      min-height: 360px;
+    }
+
+    .yandex-gallery-stage {
+      position: relative;
+      min-height: 240px;
       border: 1px solid rgba(255,255,255,.08);
       border-radius: 14px;
       background: #0f131a;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .yandex-gallery-image {
+      display: block;
+      width: 100%;
+      height: 240px;
+      object-fit: contain;
+      background: #0f131a;
+    }
+
+    .yandex-gallery-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,.2);
+      background: rgba(10, 12, 18, .6);
+      color: #fff;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .yandex-gallery-nav.prev {
+      left: 8px;
+    }
+
+    .yandex-gallery-nav.next {
+      right: 8px;
+    }
+
+    .yandex-gallery-nav:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .yandex-gallery-dots {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .yandex-gallery-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      border: 0;
+      background: rgba(255,255,255,.28);
+      cursor: pointer;
+      padding: 0;
+    }
+
+    .yandex-gallery-dot.active {
+      background: #ff9500;
     }
 
     .toolbar {
@@ -2249,71 +2316,94 @@ async function fetchClients() {
       return item.carMake || item.make || item.autoMake || item.makeName || '';
     }
 
-    function getItemImage(item) {
-      return item.image || item.imageUrl || item.picture || item.img || item.thumbnail || '';
-    }
-
     function buildImageSearchQuery(item) {
       return [item.brand, item.code, item.name].filter(Boolean).join(' ').trim();
     }
 
-    function getImageSearchLink(item) {
+    const yandexImageCache = new Map();
+
+    async function fetchYandexImages(item) {
       const query = buildImageSearchQuery(item);
-      if (!query) return 'https://yandex.ru/images/';
-      return `https://yandex.ru/images/search?text=${encodeURIComponent(query + ' автозапчасть')}`;
+      if (!query) return [];
+      if (yandexImageCache.has(query)) return yandexImageCache.get(query);
+
+      const response = await fetch(`/api/images/yandex?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Не удалось загрузить фото из Яндекса');
+      const data = await response.json();
+      const images = Array.isArray(data.images) ? data.images.slice(0, 5) : [];
+      yandexImageCache.set(query, images);
+      return images;
     }
 
-    function getInternetImageCandidates(item) {
-      const query = buildImageSearchQuery(item);
-      const fallbackQuery = query || 'auto part';
-      const encoded = encodeURIComponent(`${fallbackQuery} car part`);
-      return [
-        // Не Google: публичные источники для автоподбора без API-ключей.
-        `https://source.unsplash.com/800x600/?${encoded}`,
-        `https://loremflickr.com/800/600/car,parts?lock=${encodeURIComponent(fallbackQuery)}`
-      ];
-    }
+    function bindYandexGallery(container, item) {
+      const gallery = container.querySelector('.js-yandex-gallery');
+      if (!gallery) return;
 
-    function getImageCandidates(item) {
-      const direct = [
-        item.image,
-        item.imageUrl,
-        item.picture,
-        item.img,
-        item.thumbnail
-      ].filter(Boolean);
-      return [...new Set([...direct, ...getInternetImageCandidates(item)])];
-    }
+      const imageEl = gallery.querySelector('.js-yandex-gallery-image');
+      const noteEl = gallery.querySelector('.js-yandex-gallery-note');
+      const prevBtn = gallery.querySelector('.js-yandex-gallery-prev');
+      const nextBtn = gallery.querySelector('.js-yandex-gallery-next');
+      const dotsEl = gallery.querySelector('.js-yandex-gallery-dots');
+      let images = [];
+      let index = 0;
 
-    function bindDetailImage(container, item) {
-      const img = container.querySelector('.js-detail-image');
-      const note = container.querySelector('.js-detail-image-note');
-      if (!img) return;
-
-      const candidates = getImageCandidates(item);
-      let idx = 0;
-      const knownImage = Boolean(getItemImage(item));
-
-      const tryNext = () => {
-        if (idx >= candidates.length) {
-          img.style.display = 'none';
-          if (note) note.textContent = 'Фото не найдено. Нажмите "Поиск фото в интернете".';
+      const render = () => {
+        if (!imageEl || !noteEl || !prevBtn || !nextBtn || !dotsEl) return;
+        if (!images.length) {
+          imageEl.style.display = 'none';
+          prevBtn.disabled = true;
+          nextBtn.disabled = true;
+          dotsEl.innerHTML = '';
+          noteEl.textContent = 'Яндекс не нашел изображения для этой детали.';
           return;
         }
-        img.src = candidates[idx];
-        idx += 1;
+
+        const current = images[index];
+        imageEl.style.display = 'block';
+        imageEl.src = current.thumbnail || current.original || '';
+        imageEl.alt = `${item.brand || ''} ${item.code || ''}`.trim() || 'Фото детали';
+        noteEl.textContent = `Фото ${index + 1} из ${images.length} (Яндекс)`;
+        prevBtn.disabled = images.length <= 1;
+        nextBtn.disabled = images.length <= 1;
+
+        dotsEl.innerHTML = images.map((_, dotIndex) =>
+          `<button class="yandex-gallery-dot ${dotIndex === index ? 'active' : ''}" data-index="${dotIndex}" type="button" aria-label="Фото ${dotIndex + 1}"></button>`
+        ).join('');
+
+        Array.from(dotsEl.querySelectorAll('.yandex-gallery-dot')).forEach((dotBtn) => {
+          dotBtn.addEventListener('click', () => {
+            index = Number(dotBtn.dataset.index) || 0;
+            render();
+          });
+        });
       };
 
-      img.onload = () => {
-        img.style.display = 'inline-block';
-        if (!note) return;
-        note.textContent = idx === 1 && knownImage
-          ? 'Фото из данных каталога'
-          : 'Фото подобрано из интернета по бренду/коду';
-      };
-      img.onerror = tryNext;
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          if (!images.length) return;
+          index = (index - 1 + images.length) % images.length;
+          render();
+        });
+      }
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          if (!images.length) return;
+          index = (index + 1) % images.length;
+          render();
+        });
+      }
 
-      tryNext();
+      if (noteEl) noteEl.textContent = 'Ищем 5 фото в Яндекс...';
+      fetchYandexImages(item)
+        .then((list) => {
+          images = list;
+          index = 0;
+          render();
+        })
+        .catch(() => {
+          images = [];
+          render();
+        });
     }
 
     function getMikadoLink(item) {
@@ -2692,12 +2782,19 @@ async function fetchClients() {
 
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
-      const imageSearchLink = getImageSearchLink(item);
       els.detail.className = '';
       els.detail.innerHTML = `
-        <div class="detail-image-block">
-          <img class="js-detail-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
-          <div class="detail-image-note js-detail-image-note">Ищем фото...</div>
+        <div class="detail-block">
+          <h4>Фото детали (Яндекс)</h4>
+          <div class="yandex-gallery js-yandex-gallery">
+            <div class="yandex-gallery-stage">
+              <button class="yandex-gallery-nav prev js-yandex-gallery-prev" type="button" aria-label="Предыдущее фото">‹</button>
+              <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
+              <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
+            </div>
+            <div class="yandex-gallery-dots js-yandex-gallery-dots"></div>
+            <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
+          </div>
         </div>
         <div class="detail-block">
           <h4>Основное</h4>
@@ -2721,18 +2818,13 @@ async function fetchClients() {
           </div>
         </div>
         <div class="detail-block">
-          <h4>Фотоальбом (Яндекс Картинки)</h4>
-          <iframe class="yandex-album" src="${imageSearchLink}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-          <div class="detail-image-note">Если альбом не отобразился, Яндекс может блокировать встраивание. Тогда открой карточку в новом окне.</div>
-        </div>
-        <div class="detail-block">
           <h4>Комментарий</h4>
           <div class="sub">${item.comment || 'Без комментария'}</div>
         </div>
       `;
       els.detail.dataset.selectedId = item.id;
       bindDetailAddButton();
-      bindDetailImage(els.detail, item);
+      bindYandexGallery(els.detail, item);
     }
 
     async function search() {
@@ -2913,12 +3005,19 @@ async function fetchClients() {
       if (!item) return;
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
-      const imageSearchLink = getImageSearchLink(item);
       
       let html = `
-        <div class="detail-image-block">
-          <img class="js-detail-image" src="" alt="${item.name || item.code || 'Изображение'}" loading="lazy" />
-          <div class="detail-image-note js-detail-image-note">Ищем фото...</div>
+        <div class="detail-block">
+          <h4>Фото детали (Яндекс)</h4>
+          <div class="yandex-gallery js-yandex-gallery">
+            <div class="yandex-gallery-stage">
+              <button class="yandex-gallery-nav prev js-yandex-gallery-prev" type="button" aria-label="Предыдущее фото">‹</button>
+              <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
+              <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
+            </div>
+            <div class="yandex-gallery-dots js-yandex-gallery-dots"></div>
+            <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
+          </div>
         </div>
         <div class="detail-block">
           <h4>Основное</h4>
@@ -2942,10 +3041,6 @@ async function fetchClients() {
           </div>
         </div>
         <div class="detail-block">
-          <h4>Фотоальбом (Яндекс Картинки)</h4>
-          <iframe class="yandex-album" src="${imageSearchLink}" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
-        </div>
-        <div class="detail-block">
           <h4>Комментарий</h4>
           <div class="sub">${item.comment || 'Без комментария'}</div>
         </div>
@@ -2953,7 +3048,7 @@ async function fetchClients() {
       
       const detailPanelContent = document.getElementById('detailPanelContent');
       detailPanelContent.innerHTML = html;
-      bindDetailImage(detailPanelContent, item);
+      bindYandexGallery(detailPanelContent, item);
       detailPanel.classList.add('open');
       detailPanel.dataset.selectedId = item.id;
 
