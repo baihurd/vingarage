@@ -228,115 +228,6 @@
       color: #fff;
     }
 
-    .detail-image-block {
-      display: block;
-      margin: 0 0 18px;
-      text-align: center;
-    }
-
-    .detail-image-block img {
-      display: inline-block;
-      max-width: 100%;
-      max-height: 220px;
-      object-fit: contain;
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.08);
-      background: rgba(255,255,255,.03);
-    }
-
-    .detail-image-note {
-      margin-top: 8px;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .yandex-gallery {
-      width: 100%;
-    }
-
-    .yandex-gallery-stage {
-      position: relative;
-      min-height: 240px;
-      border: 1px solid rgba(255,255,255,.08);
-      border-radius: 14px;
-      background: #0f131a;
-      overflow: hidden;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .yandex-gallery-image {
-      display: block;
-      width: 100%;
-      height: 240px;
-      object-fit: contain;
-      background: #0f131a;
-    }
-
-    .yandex-gallery-nav {
-      position: absolute;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      border: 1px solid rgba(255,255,255,.2);
-      background: rgba(10, 12, 18, .6);
-      color: #fff;
-      font-size: 18px;
-      line-height: 1;
-      cursor: pointer;
-      z-index: 2;
-    }
-
-    .yandex-gallery-nav.prev {
-      left: 8px;
-    }
-
-    .yandex-gallery-nav.next {
-      right: 8px;
-    }
-
-    .yandex-gallery-nav:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
-
-    .yandex-gallery-thumbs {
-      display: flex;
-      gap: 8px;
-      justify-content: flex-start;
-      margin-top: 10px;
-      overflow-x: auto;
-      padding-bottom: 4px;
-    }
-
-    .yandex-thumb {
-      all: unset;
-      width: 58px;
-      height: 58px;
-      border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.18);
-      overflow: hidden;
-      flex: 0 0 auto;
-      cursor: pointer;
-      display: block;
-    }
-
-    .yandex-thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
-      background: #101521;
-    }
-
-    .yandex-thumb.active {
-      border-color: #ff9500;
-      box-shadow: 0 0 0 2px rgba(255, 149, 0, .35);
-    }
-
     .toolbar {
       display: flex;
       gap: 10px;
@@ -2328,133 +2219,6 @@ async function fetchClients() {
       return item.carMake || item.make || item.autoMake || item.makeName || '';
     }
 
-    function buildImageSearchQueries(item) {
-      const brand = String(item.brand || '').trim();
-      const code = String(item.code || '').trim();
-      const mikadoCode = String(item.mikadoCode || '').trim();
-      const primary = [brand, code].filter(Boolean).join(' ').trim();
-      const reserve = [brand, mikadoCode].filter(Boolean).join(' ').trim();
-      const queries = [
-        primary,
-        primary ? `${primary} запчасть` : '',
-        reserve,
-        reserve ? `${reserve} запчасть` : ''
-      ].filter(Boolean);
-      return [...new Set(queries)];
-    }
-
-    const yandexImageCache = new Map();
-
-    async function fetchYandexImages(item) {
-      const queries = buildImageSearchQueries(item);
-      if (!queries.length) return { images: [], usedQuery: '' };
-
-      const cacheKey = queries.join(' || ');
-      if (yandexImageCache.has(cacheKey)) return yandexImageCache.get(cacheKey);
-
-      const seen = new Set();
-      const combined = [];
-      let usedQuery = queries[0] || '';
-
-      for (const query of queries) {
-        const response = await fetch(`/api/images/yandex?q=${encodeURIComponent(query)}`);
-        if (!response.ok) continue;
-        const data = await response.json();
-        const images = Array.isArray(data.images) ? data.images : [];
-        if (!images.length) continue;
-        if (!combined.length) usedQuery = query;
-        for (const img of images) {
-          const key = img.thumbnail || img.original;
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          combined.push(img);
-          if (combined.length >= 5) break;
-        }
-        if (combined.length >= 5) break;
-      }
-
-      const payload = { images: combined.slice(0, 5), usedQuery };
-      yandexImageCache.set(cacheKey, payload);
-      return payload;
-    }
-
-    function bindYandexGallery(container, item) {
-      const gallery = container.querySelector('.js-yandex-gallery');
-      if (!gallery) return;
-
-      const imageEl = gallery.querySelector('.js-yandex-gallery-image');
-      const noteEl = gallery.querySelector('.js-yandex-gallery-note');
-      const prevBtn = gallery.querySelector('.js-yandex-gallery-prev');
-      const nextBtn = gallery.querySelector('.js-yandex-gallery-next');
-      const thumbsEl = gallery.querySelector('.js-yandex-gallery-thumbs');
-      let images = [];
-      let index = 0;
-      const queries = buildImageSearchQueries(item);
-      const primaryQuery = queries[0] || '';
-
-      const render = () => {
-        if (!imageEl || !noteEl || !prevBtn || !nextBtn || !thumbsEl) return;
-        if (!images.length) {
-          imageEl.style.display = 'none';
-          prevBtn.disabled = true;
-          nextBtn.disabled = true;
-          thumbsEl.innerHTML = '';
-          noteEl.textContent = primaryQuery
-            ? `Яндекс не отдал фото по запросу: ${primaryQuery}`
-            : 'Не указан бренд/код для поиска фото.';
-          return;
-        }
-
-        const current = images[index];
-        imageEl.style.display = 'block';
-        imageEl.src = current.thumbnail || current.original || '';
-        imageEl.alt = `${item.brand || ''} ${item.code || ''}`.trim() || 'Фото детали';
-        noteEl.textContent = `Фото ${index + 1} из ${images.length} (Яндекс, запрос: ${primaryQuery || 'бренд+код'})`;
-        prevBtn.disabled = images.length <= 1;
-        nextBtn.disabled = images.length <= 1;
-
-        thumbsEl.innerHTML = images.map((img, thumbIndex) =>
-          `<button class="yandex-thumb ${thumbIndex === index ? 'active' : ''}" data-index="${thumbIndex}" type="button" aria-label="Миниатюра ${thumbIndex + 1}">
-            <img src="${img.thumbnail || img.original || ''}" alt="Миниатюра ${thumbIndex + 1}" loading="lazy" />
-          </button>`
-        ).join('');
-
-        Array.from(thumbsEl.querySelectorAll('.yandex-thumb')).forEach((thumbBtn) => {
-          thumbBtn.addEventListener('click', () => {
-            index = Number(thumbBtn.dataset.index) || 0;
-            render();
-          });
-        });
-      };
-
-      if (prevBtn) {
-        prevBtn.addEventListener('click', () => {
-          if (!images.length) return;
-          index = (index - 1 + images.length) % images.length;
-          render();
-        });
-      }
-      if (nextBtn) {
-        nextBtn.addEventListener('click', () => {
-          if (!images.length) return;
-          index = (index + 1) % images.length;
-          render();
-        });
-      }
-
-      if (noteEl) noteEl.textContent = 'Ищем 5 фото в Яндекс...';
-      fetchYandexImages(item)
-        .then((payload) => {
-          images = payload.images || [];
-          index = 0;
-          render();
-        })
-        .catch(() => {
-          images = [];
-          render();
-        });
-    }
-
     function getMikadoLink(item) {
       const code = item.mikadoCode;
       if (!code) return '';
@@ -2834,18 +2598,6 @@ async function fetchClients() {
       els.detail.className = '';
       els.detail.innerHTML = `
         <div class="detail-block">
-          <h4>Фото детали (Яндекс)</h4>
-          <div class="yandex-gallery js-yandex-gallery">
-            <div class="yandex-gallery-stage">
-              <button class="yandex-gallery-nav prev js-yandex-gallery-prev" type="button" aria-label="Предыдущее фото">‹</button>
-              <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
-              <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
-            </div>
-            <div class="yandex-gallery-thumbs js-yandex-gallery-thumbs"></div>
-            <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
-          </div>
-        </div>
-        <div class="detail-block">
           <h4>Основное</h4>
           <div class="kv">
             <div>Бренд</div><div>${item.brand || '—'}</div>
@@ -2873,7 +2625,6 @@ async function fetchClients() {
       `;
       els.detail.dataset.selectedId = item.id;
       bindDetailAddButton();
-      bindYandexGallery(els.detail, item);
     }
 
     async function search() {
@@ -3057,18 +2808,6 @@ async function fetchClients() {
       
       let html = `
         <div class="detail-block">
-          <h4>Фото детали (Яндекс)</h4>
-          <div class="yandex-gallery js-yandex-gallery">
-            <div class="yandex-gallery-stage">
-              <button class="yandex-gallery-nav prev js-yandex-gallery-prev" type="button" aria-label="Предыдущее фото">‹</button>
-              <img class="yandex-gallery-image js-yandex-gallery-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
-              <button class="yandex-gallery-nav next js-yandex-gallery-next" type="button" aria-label="Следующее фото">›</button>
-            </div>
-            <div class="yandex-gallery-thumbs js-yandex-gallery-thumbs"></div>
-            <div class="detail-image-note js-yandex-gallery-note">Ищем 5 фото в Яндекс...</div>
-          </div>
-        </div>
-        <div class="detail-block">
           <h4>Основное</h4>
           <div class="kv">
             <div>Бренд</div><div>${item.brand || '—'}</div>
@@ -3097,7 +2836,6 @@ async function fetchClients() {
       
       const detailPanelContent = document.getElementById('detailPanelContent');
       detailPanelContent.innerHTML = html;
-      bindYandexGallery(detailPanelContent, item);
       detailPanel.classList.add('open');
       detailPanel.dataset.selectedId = item.id;
 
