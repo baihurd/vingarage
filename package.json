@@ -12,8 +12,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "better-sqlite3": "^9.2.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "better-sqlite3": "^9.2.2"
+    "playwright": "^1.59.1"
   }
 }

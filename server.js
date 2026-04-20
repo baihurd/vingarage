@@ -5,6 +5,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { execSync } from "child_process";
 import crypto from "crypto";
+import { chromium } from "playwright";
 
 const app = express();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,6 +81,8 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(__dirname));
 
 const PORT = process.env.PORT || 3000;
+const IMAGE_BROWSER_TIMEOUT_MS = Number(process.env.IMAGE_BROWSER_TIMEOUT_MS || 15000);
+const IMAGE_BROWSER_ENABLED = process.env.IMAGE_BROWSER_ENABLED !== "false";
 
 const CLIENT_ID = "85379";
 const PASSWORD = "1234554321kg";
@@ -227,6 +230,83 @@ function normalizeImageUrl(url = "") {
   return "";
 }
 
+let imageBrowser;
+
+async function getImageBrowser() {
+  if (imageBrowser) return imageBrowser;
+  imageBrowser = await chromium.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+  });
+  return imageBrowser;
+}
+
+async function extractYandexImagesWithBrowser(query, limit = 5) {
+  if (!IMAGE_BROWSER_ENABLED) return [];
+  const browser = await getImageBrowser();
+  const context = await browser.newContext({
+    locale: "ru-RU",
+    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+  });
+  const page = await context.newPage();
+  try {
+    const searchUrl = new URL("https://yandex.ru/images/search");
+    searchUrl.searchParams.set("text", query);
+    searchUrl.searchParams.set("from", "tabbar");
+
+    await page.goto(searchUrl.toString(), { waitUntil: "domcontentloaded", timeout: IMAGE_BROWSER_TIMEOUT_MS });
+    await page.waitForTimeout(1600);
+
+    const items = await page.evaluate((maxCount) => {
+      const result = [];
+      const seen = new Set();
+      const pushImage = (thumb, original) => {
+        if (!thumb || seen.has(thumb)) return;
+        seen.add(thumb);
+        result.push({ thumbnail: thumb, original: original || thumb, source: "yandex" });
+      };
+
+      const parseBem = (raw) => {
+        if (!raw) return null;
+        try {
+          return JSON.parse(raw);
+        } catch {
+          return null;
+        }
+      };
+
+      const cards = Array.from(document.querySelectorAll(".serp-item"));
+      for (const card of cards) {
+        if (result.length >= maxCount) break;
+        const bemRaw = card.getAttribute("data-bem");
+        const bem = parseBem(bemRaw);
+        const item = bem && bem["serp-item"] ? bem["serp-item"] : null;
+        if (item) {
+          const thumb = item.thumb && item.thumb.url ? item.thumb.url : "";
+          const original = item.img_href || thumb;
+          pushImage(thumb, original);
+        }
+        const img = card.querySelector("img");
+        if (img && result.length < maxCount) {
+          const src = img.getAttribute("src") || img.getAttribute("data-src") || "";
+          pushImage(src, src);
+        }
+      }
+      return result.slice(0, maxCount);
+    }, limit);
+
+    return items
+      .map((it) => ({
+        thumbnail: normalizeImageUrl(it.thumbnail || ""),
+        original: normalizeImageUrl(it.original || it.thumbnail || ""),
+        source: "yandex"
+      }))
+      .filter((it) => it.thumbnail);
+  } finally {
+    await context.close();
+  }
+}
+
 function extractYandexImagesFromHtml(html, limit = 5) {
   const results = [];
   const seen = new Set();
@@ -370,6 +450,15 @@ app.get("/api/images/yandex", async (req, res) => {
       return res.status(400).json({ ok: false, error: "Query required" });
     }
 
+    let images = [];
+
+    // Основной путь: реальный браузерный рендер (стабильнее plain HTML).
+    try {
+      images = await extractYandexImagesWithBrowser(q, 5);
+    } catch (browserErr) {
+      console.warn("Browser image extraction failed:", browserErr.message);
+    }
+
     const searchUrl = new URL("https://yandex.ru/images/search");
     searchUrl.searchParams.set("text", q);
     searchUrl.searchParams.set("from", "tabbar");
@@ -387,7 +476,9 @@ app.get("/api/images/yandex", async (req, res) => {
     }
 
     const html = await response.text();
-    let images = extractYandexImagesFromHtml(html, 5);
+    if (!images.length) {
+      images = extractYandexImagesFromHtml(html, 5);
+    }
 
     // Фолбэк: иногда HTML приходит без карточек, пробуем JSON-блок выдачи
     if (images.length === 0) {
@@ -574,7 +665,7 @@ app.delete("/api/clients/:id", (req, res) => {
 syncWithGit();
 
 // Запуск сервера
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔════════════════════════════════════════╗
 ║  🎉 VinGarage Server Started!          ║
@@ -587,5 +678,19 @@ app.listen(PORT, '0.0.0.0', () => {
 ╚════════════════════════════════════════╝
   `);
 });
+
+async function shutdown() {
+  try {
+    if (imageBrowser) {
+      await imageBrowser.close();
+      imageBrowser = null;
+    }
+  } finally {
+    server.close(() => process.exit(0));
+  }
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
 
 export default app;
