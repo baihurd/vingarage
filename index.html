@@ -2548,10 +2548,12 @@ async function fetchClients() {
         return;
       }
 
+
       const html = sorted.map(item => {
         const av = availabilityMeta(item);
         const titleText = `${item.brand || '—'} ${item.code || '—'}`.trim();
-        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(item.name || titleText)}`;
+        // Search by name only (not description or code/brand)
+        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(item.name || '—')}`;
         const itemHref = yandexSearch;
         return `
           <article class="result-item" data-id="${item.id}">
