@@ -2334,7 +2334,12 @@ async function fetchClients() {
       const mikadoCode = String(item.mikadoCode || '').trim();
       const primary = [brand, code].filter(Boolean).join(' ').trim();
       const reserve = [brand, mikadoCode].filter(Boolean).join(' ').trim();
-      const queries = [primary, reserve].filter(Boolean);
+      const queries = [
+        primary,
+        primary ? `${primary} запчасть` : '',
+        reserve,
+        reserve ? `${reserve} запчасть` : ''
+      ].filter(Boolean);
       return [...new Set(queries)];
     }
 
