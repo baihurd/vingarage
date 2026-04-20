@@ -2552,8 +2552,9 @@ async function fetchClients() {
       const html = sorted.map(item => {
         const av = availabilityMeta(item);
         const titleText = `${item.brand || '—'} ${item.code || '—'}`.trim();
-        // Search by name only (not description or code/brand)
-        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(item.name || '—')}`;
+        // Search by brand + code (название), а не по описанию
+        const searchTitle = `${item.brand || ''} ${item.code || ''}`.trim();
+        const yandexSearch = `https://yandex.ru/search/?text=${encodeURIComponent(searchTitle || '—')}`;
         const itemHref = yandexSearch;
         return `
           <article class="result-item" data-id="${item.id}">
