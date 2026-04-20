@@ -244,6 +244,12 @@
       background: rgba(255,255,255,.03);
     }
 
+    .detail-image-note {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
     .toolbar {
       display: flex;
       gap: 10px;
@@ -2239,6 +2245,75 @@ async function fetchClients() {
       return item.image || item.imageUrl || item.picture || item.img || item.thumbnail || '';
     }
 
+    function buildImageSearchQuery(item) {
+      return [item.brand, item.code, item.name].filter(Boolean).join(' ').trim();
+    }
+
+    function getImageSearchLink(item) {
+      const query = buildImageSearchQuery(item);
+      if (!query) return 'https://yandex.ru/images/';
+      return `https://yandex.ru/images/search?text=${encodeURIComponent(query + ' автозапчасть')}`;
+    }
+
+    function getBingImageSearchLink(item) {
+      const query = buildImageSearchQuery(item);
+      if (!query) return 'https://www.bing.com/images';
+      return `https://www.bing.com/images/search?q=${encodeURIComponent(query + ' car part')}`;
+    }
+
+    function getInternetImageCandidates(item) {
+      const query = buildImageSearchQuery(item);
+      const fallbackQuery = query || 'auto part';
+      const encoded = encodeURIComponent(`${fallbackQuery} car part`);
+      return [
+        // Не Google: публичные источники для автоподбора без API-ключей.
+        `https://source.unsplash.com/800x600/?${encoded}`,
+        `https://loremflickr.com/800/600/car,parts?lock=${encodeURIComponent(fallbackQuery)}`
+      ];
+    }
+
+    function getImageCandidates(item) {
+      const direct = [
+        item.image,
+        item.imageUrl,
+        item.picture,
+        item.img,
+        item.thumbnail
+      ].filter(Boolean);
+      return [...new Set([...direct, ...getInternetImageCandidates(item)])];
+    }
+
+    function bindDetailImage(container, item) {
+      const img = container.querySelector('.js-detail-image');
+      const note = container.querySelector('.js-detail-image-note');
+      if (!img) return;
+
+      const candidates = getImageCandidates(item);
+      let idx = 0;
+      const knownImage = Boolean(getItemImage(item));
+
+      const tryNext = () => {
+        if (idx >= candidates.length) {
+          img.style.display = 'none';
+          if (note) note.textContent = 'Фото не найдено. Нажмите "Поиск фото в интернете".';
+          return;
+        }
+        img.src = candidates[idx];
+        idx += 1;
+      };
+
+      img.onload = () => {
+        img.style.display = 'inline-block';
+        if (!note) return;
+        note.textContent = idx === 1 && knownImage
+          ? 'Фото из данных каталога'
+          : 'Фото подобрано из интернета по бренду/коду';
+      };
+      img.onerror = tryNext;
+
+      tryNext();
+    }
+
     function getMikadoLink(item) {
       const code = item.mikadoCode;
       if (!code) return '';
@@ -2615,14 +2690,14 @@ async function fetchClients() {
 
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
-      const itemImage = getItemImage(item);
+      const imageSearchLink = getImageSearchLink(item);
+      const bingImageSearchLink = getBingImageSearchLink(item);
       els.detail.className = '';
       els.detail.innerHTML = `
-        ${itemImage ? `
         <div class="detail-image-block">
-          <img src="${itemImage}" alt="${item.name || item.code || 'Изображение детали'}" />
+          <img class="js-detail-image" src="" alt="${item.name || item.code || 'Изображение детали'}" loading="lazy" />
+          <div class="detail-image-note js-detail-image-note">Ищем фото...</div>
         </div>
-        ` : ''}
         <div class="detail-block">
           <h4>Основное</h4>
           <div class="kv">
@@ -2642,6 +2717,8 @@ async function fetchClients() {
           <div class="toolbar">
             <button class="link-button secondary" type="button" id="detailAddCartBtn">Добавить в корзину</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
+            <a class="link-button" href="${imageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Яндекс)</a>
+            <a class="link-button" href="${bingImageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Bing)</a>
           </div>
         </div>
         <div class="detail-block">
@@ -2651,6 +2728,7 @@ async function fetchClients() {
       `;
       els.detail.dataset.selectedId = item.id;
       bindDetailAddButton();
+      bindDetailImage(els.detail, item);
     }
 
     async function search() {
@@ -2831,10 +2909,14 @@ async function fetchClients() {
       if (!item) return;
       const av = availabilityMeta(item);
       const mikadoLink = getMikadoLink(item);
-      const itemImage = getItemImage(item);
+      const imageSearchLink = getImageSearchLink(item);
+      const bingImageSearchLink = getBingImageSearchLink(item);
       
       let html = `
-        ${itemImage ? `<div class="detail-image-block"><img src="${itemImage}" alt="${item.name || item.code || 'Изображение'}" /></div>` : ''}
+        <div class="detail-image-block">
+          <img class="js-detail-image" src="" alt="${item.name || item.code || 'Изображение'}" loading="lazy" />
+          <div class="detail-image-note js-detail-image-note">Ищем фото...</div>
+        </div>
         <div class="detail-block">
           <h4>Основное</h4>
           <div class="kv">
@@ -2854,6 +2936,8 @@ async function fetchClients() {
           <div class="toolbar">
             <button id="panelAddCartBtn" class="link-button secondary" type="button">Добавить в корзину</button>
             ${mikadoLink ? `<a class="link-button" href="${mikadoLink}" target="_blank" rel="noopener noreferrer">Открыть на Mikado</a>` : ''}
+            <a class="link-button" href="${imageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Яндекс)</a>
+            <a class="link-button" href="${bingImageSearchLink}" target="_blank" rel="noopener noreferrer">Фото (Bing)</a>
           </div>
         </div>
         <div class="detail-block">
@@ -2862,7 +2946,9 @@ async function fetchClients() {
         </div>
       `;
       
-      document.getElementById('detailPanelContent').innerHTML = html;
+      const detailPanelContent = document.getElementById('detailPanelContent');
+      detailPanelContent.innerHTML = html;
+      bindDetailImage(detailPanelContent, item);
       detailPanel.classList.add('open');
       detailPanel.dataset.selectedId = item.id;
 
