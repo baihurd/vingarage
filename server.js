@@ -212,6 +212,8 @@ function decodeHtmlEntities(text = "") {
   return String(text)
     .replace(/&quot;/g, '"')
     .replace(/&amp;/g, '&')
+    .replace(/\\u002F/g, '/')
+    .replace(/\\\//g, '/')
     .replace(/&#x2F;/g, '/')
     .replace(/&#x27;/g, "'")
     .replace(/&lt;/g, '<')
@@ -274,6 +276,33 @@ function extractYandexImagesFromHtml(html, limit = 5) {
     }
   }
 
+  return results;
+}
+
+function extractFallbackYandexImageLinks(html, limit = 5) {
+  const results = [];
+  const seen = new Set();
+  const decoded = decodeHtmlEntities(html);
+  const patterns = [
+    /https?:\/\/avatars\.mds\.yandex\.net\/i\?id=[^"'\\\s>]+/gi,
+    /https?:\/\/[^"'\\\s>]+(?:\.jpg|\.jpeg|\.png|\.webp)(?:\?[^"'\\\s>]*)?/gi
+  ];
+
+  for (const regex of patterns) {
+    const matches = decoded.match(regex) || [];
+    for (const match of matches) {
+      const url = normalizeImageUrl(match);
+      if (!url || seen.has(url)) continue;
+      if (/favicon|logo|sprite|counter|yastatic|clck|mc\.yandex/i.test(url)) continue;
+      seen.add(url);
+      results.push({
+        thumbnail: url,
+        original: url,
+        source: "yandex"
+      });
+      if (results.length >= limit) return results;
+    }
+  }
   return results;
 }
 
@@ -413,6 +442,11 @@ app.get("/api/images/yandex", async (req, res) => {
           images = extractYandexImagesFromHtml(blockHtml, 5);
         }
       }
+    }
+
+    // Жесткий fallback: берем любые валидные image URL из ответа Яндекса по тому же запросу.
+    if (images.length === 0) {
+      images = extractFallbackYandexImageLinks(html, 5);
     }
 
     return res.json({ ok: true, query: q, images: images.slice(0, 5) });

@@ -2395,7 +2395,7 @@ async function fetchClients() {
           nextBtn.disabled = true;
           thumbsEl.innerHTML = '';
           noteEl.textContent = primaryQuery
-            ? `Яндекс не нашел фото по запросу: ${primaryQuery}`
+            ? `Яндекс не отдал фото по запросу: ${primaryQuery}`
             : 'Не указан бренд/код для поиска фото.';
           return;
         }
